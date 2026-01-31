@@ -31,7 +31,9 @@
     "dev": "vite build --watch",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src --ext .ts",
-    "test": "vitest"
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "constellationfs": "workspace:*",

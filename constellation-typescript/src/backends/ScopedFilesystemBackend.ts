@@ -16,7 +16,6 @@ export class ScopedFilesystemBackend<T extends FileBasedBackend = FileBasedBacke
   readonly parent: T
   readonly scopePath: string
   readonly rootDir: string
-  readonly connected: boolean
 
   private readonly customEnv?: Record<string, string>
   private readonly operationsLogger?: OperationsLogger
@@ -30,12 +29,18 @@ export class ScopedFilesystemBackend<T extends FileBasedBackend = FileBasedBacke
     this.type = parent.type
     this.scopePath = scopePath
     this.rootDir = path.join(parent.rootDir, scopePath)
-    this.connected = parent.connected
     this.customEnv = config?.env
     this.operationsLogger = config?.operationsLogger
 
     // Validate scope path doesn't escape parent
     this.validateScopePath(scopePath)
+  }
+
+  /**
+   * Get connection status from parent backend
+   */
+  get connected(): boolean {
+    return this.parent.connected
   }
 
   /**

@@ -76,8 +76,9 @@ export class ScopedMemoryBackend<T extends FileBasedBackend = FileBasedBackend> 
     this.logOperation('readdir', { prefix: scopedPrefix })
     const keys = await this.parent.readdir(scopedPrefix)
 
-    // Strip scope prefix from results
-    return keys.map(key => key.substring(this.scopePath.length))
+    // Parent's readdir already returns relative children (not including prefix)
+    // So we return them as-is
+    return keys
   }
 
   /**

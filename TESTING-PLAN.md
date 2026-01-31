@@ -815,27 +815,45 @@ Comprehensive test coverage for all components in the monorepo.
 
 ### Implemented
 - ✅ Backend classes (Local, Remote, Memory)
-- ✅ Scoped backends
-- ✅ Pool manager
-- ✅ MCP servers
-- ✅ CLI
+- ✅ Scoped backends (ScopedFilesystemBackend, ScopedMemoryBackend)
+- ✅ Pool manager (BackendPoolManager)
+- ✅ MCP servers (Local, Memory)
+- ✅ CLI (partial - MCP server mode done)
 - ✅ Deployment infrastructure
 
-### Test Coverage
-- ⏳ Unit tests (to be written)
-- ⏳ Integration tests (to be written)
-- ⏳ Security tests (to be written)
-- ⏳ E2E tests (to be written)
+### Test Coverage (12 active test files)
+- ✅ Unit tests - **DONE** (backends, scoped backends, pooling)
+- ✅ Security tests - **DONE** (path escape, command injection, safety)
+- ⏳ Integration tests - **PARTIAL** (MCP servers done, CLI/E2E pending)
+- ⏳ E2E tests - **TODO**
+
+### Test Files Completed
+**constellation-typescript (9 files):**
+- ✅ LocalFilesystemBackend.test.ts
+- ✅ RemoteFilesystemBackend.test.ts
+- ✅ MemoryBackend.test.ts
+- ✅ ScopedFilesystemBackend.test.ts
+- ✅ ScopedMemoryBackend.test.ts
+- ✅ BackendPoolManager.test.ts
+- ✅ safety.test.ts
+- ✅ path-escape.test.ts
+- ✅ command-injection.test.ts
+
+**agentbe-server (3 files):**
+- ✅ LocalFilesystemMCPServer.test.ts
+- ✅ MemoryMCPServer.test.ts
+- ✅ mcp-server.test.ts (CLI)
 
 ---
 
 ## Next Steps
 
-1. Set up test infrastructure (Vitest configuration)
-2. Write unit tests for LocalFilesystemBackend
-3. Write security tests (path escape, command injection)
-4. Write MCP integration tests
-5. Write CLI tests
-6. Write integration tests
-7. Measure and report coverage
-8. Add CI/CD pipeline
+1. ~~Set up test infrastructure (Vitest configuration)~~ ✅ **DONE**
+2. ~~Write unit tests for LocalFilesystemBackend~~ ✅ **DONE**
+3. ~~Write security tests (path escape, command injection)~~ ✅ **DONE**
+4. ~~Write MCP integration tests~~ ✅ **DONE** (Local, Memory)
+5. Write RemoteFilesystemMCPServer tests ⏳ **TODO**
+6. Write CLI tests (start-remote/stop-remote) ⏳ **TODO**
+7. Write E2E integration tests ⏳ **TODO**
+8. Measure and report coverage ⏳ **TODO**
+9. Add CI/CD pipeline ⏳ **TODO**

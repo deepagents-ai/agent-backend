@@ -35,7 +35,7 @@ export default [
       '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/consistent-type-imports': 'error',
       '@typescript-eslint/no-non-null-assertion': 'off',
-      
+
       // General rules
       'no-console': 'off', // Allow console for CLI tool
       'no-unused-vars': 'off', // Use TypeScript's rule instead
@@ -45,7 +45,6 @@ export default [
       'no-multiple-empty-lines': ['error', { max: 1 }],
       'eol-last': 'error',
       'semi': ['error', 'never'],
-      'quotes': ['error', 'single', { avoidEscape: true }],
     },
   },
   {

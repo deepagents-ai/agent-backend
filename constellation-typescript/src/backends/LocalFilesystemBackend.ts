@@ -168,19 +168,21 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       throw new BackendError('Command cannot be empty', ERROR_CODES.EMPTY_COMMAND)
     }
 
-    // Safety checks
-    if (this.preventDangerous && isDangerous(command)) {
-      const error = new DangerousOperationError(command)
-      if (this.onDangerousOperation) {
-        this.onDangerousOperation(command)
-        return ''
+    // Safety checks (only if preventDangerous is enabled)
+    if (this.preventDangerous) {
+      if (isDangerous(command)) {
+        const error = new DangerousOperationError(command)
+        if (this.onDangerousOperation) {
+          this.onDangerousOperation(command)
+          return ''
+        }
+        throw error
       }
-      throw error
-    }
 
-    const safetyCheck = isCommandSafe(command)
-    if (!safetyCheck.safe) {
-      throw new BackendError(safetyCheck.reason, 'UNSAFE_COMMAND', command)
+      const safetyCheck = isCommandSafe(command)
+      if (!safetyCheck.safe) {
+        throw new BackendError(safetyCheck.reason, 'UNSAFE_COMMAND', command)
+      }
     }
 
     // Route to appropriate executor based on isolation mode

@@ -32,6 +32,9 @@ export interface PoolStats {
 
   /** Number of idle backends */
   idleBackends: number
+
+  /** Number of backends per key */
+  backendsByKey: Record<string, number>
 }
 
 interface PooledBackend<T extends Backend> {
@@ -102,15 +105,38 @@ export class BackendPoolManager<T extends Backend> {
    * }
    * ```
    */
-  async acquireBackend(options?: { key?: string }): Promise<{ backend: T; release: () => void }> {
-    const key = options?.key ?? 'default'
+  async acquireBackend(options?: { key?: string; config?: any }): Promise<{ backend: T; release: () => void }> {
+    const key = options?.key
+    const configOverride = options?.config
 
+    // If no key provided, create non-pooled instance
+    if (key === undefined) {
+      const mergedConfig = configOverride
+        ? { ...this.config.defaultConfig, ...configOverride }
+        : this.config.defaultConfig
+
+      getLogger().debug('[BackendPool] Creating non-pooled backend (no key provided)')
+      const backend = new this.config.backendClass(mergedConfig)
+
+      // Non-pooled backend, release is a no-op
+      const release = () => {
+        getLogger().debug('[BackendPool] Released non-pooled backend')
+      }
+
+      return { backend, release }
+    }
+
+    // Pooled backend path
     let pooled = this.backends.get(key)
 
     if (!pooled || !pooled.backend.connected) {
       // Create new backend
+      const mergedConfig = configOverride
+        ? { ...this.config.defaultConfig, ...configOverride }
+        : this.config.defaultConfig
+
       getLogger().debug(`[BackendPool] Creating new backend for key: ${key}`)
-      const backend = new this.config.backendClass(this.config.defaultConfig)
+      const backend = new this.config.backendClass(mergedConfig)
       pooled = {
         backend,
         inUse: 0,
@@ -151,7 +177,7 @@ export class BackendPoolManager<T extends Backend> {
    * ```
    */
   async withBackend<R>(
-    options: { key?: string },
+    options: { key?: string; config?: any },
     fn: (backend: T) => Promise<R>
   ): Promise<R> {
     const { backend, release } = await this.acquireBackend(options)
@@ -170,8 +196,11 @@ export class BackendPoolManager<T extends Backend> {
   getStats(): PoolStats {
     let activeCount = 0
     let idleCount = 0
+    const backendsByKey: Record<string, number> = {}
 
-    for (const pooled of this.backends.values()) {
+    for (const [key, pooled] of this.backends.entries()) {
+      backendsByKey[key] = 1 // One backend per key in the pool
+
       if (pooled.inUse > 0) {
         activeCount++
       } else {
@@ -182,7 +211,8 @@ export class BackendPoolManager<T extends Backend> {
     return {
       totalBackends: this.backends.size,
       activeBackends: activeCount,
-      idleBackends: idleCount
+      idleBackends: idleCount,
+      backendsByKey
     }
   }
 

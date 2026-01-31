@@ -24,57 +24,86 @@ const DEFAULT_ALLOWED_PATTERNS: RegExp[] = [
  * These patterns will be blocked when preventDangerous is true
  */
 const DANGEROUS_PATTERNS = [
-  // System-wide destructive operations
-  /^rm\s+.*-rf?\s+\/($|\s)/,
-  /^rm\s+.*-rf?\s+~($|\s)/,
-  /^rm\s+.*-rf?\s+\*($|\s)/,
-  
+  // System-wide destructive rm operations
+  /\brm\b.*-rf?\b.*[\/~\*]/,  // rm with -r or -rf flag and dangerous paths
+  /\brm\b.*[\/~\*].*-rf?\b/,  // rm with dangerous paths then -r or -rf
+
+  // Disk wiping with dd
+  /\bdd\b.*\bof=\/dev\//,
+
   // Privilege escalation
-  /^sudo\b/,
-  /^su\b/,
-  
+  /\bsudo\b/,
+  /\bsu\b/,
+
   // System modification
-  /^chmod\s+.*777/,
-  /^chown\s+.*root/,
-  
+  /\bchmod\b.*777/,
+  /\bchown\b.*root/,
+
   // Dangerous network downloads and execution (pipe-to-shell)
   /curl\b.*\|\s*(sh|bash|zsh|fish)\b/,
   /wget\b.*\|\s*(sh|bash|zsh|fish)\b/,
   /\|\s*(sh|bash|zsh|fish)\s*$/,
 
   // Direct network tools that are inherently dangerous
-  /^nc\b/,
-  /^ncat\b/,
-  /^netcat\b/,
-  /^telnet\b/,
-  /^ftp\b/,
-  /^ssh\b/,
-  /^scp\b/,
-  /^rsync\b/,
-  
+  /\bnc\b/,
+  /\bncat\b/,
+  /\bnetcat\b/,
+  /\btelnet\b/,
+  /\bftp\b/,
+  /\bssh\b/,
+  /\bscp\b/,
+  /\brsync\b/,
+
   // Process/system control
-  /^kill\s+-9/,
-  /^killall\b/,
-  /^pkill\b/,
-  /^shutdown\b/,
-  /^reboot\b/,
-  /^halt\b/,
-  /^init\s+[06]\b/,
-  
+  /\bkill\s+-9/,
+  /\bkillall\b/,
+  /\bpkill\b/,
+  /\bshutdown\b/,
+  /\breboot\b/,
+  /\bhalt\b/,
+  /\binit\s+[06]\b/,
+
   // File system manipulation outside workspace context
-  /^mount\b/,
-  /^umount\b/,
-  /^fdisk\b/,
-  /^mkfs\b/,
-  /^fsck\b/,
-  
-  // Command substitution with dangerous commands
-  /`(sudo|su|rm\s+-rf?\s*\/|shutdown|reboot)/,
-  /\$\((sudo|su|rm\s+-rf?\s*\/|shutdown|reboot)/,
-  
+  /\bmount\b/,
+  /\bumount\b/,
+  /\bfdisk\b/,
+  /\bmkfs\b/,
+  /\bfsck\b/,
+
+  // Command substitution (inherently dangerous - allows code execution)
+  /`[^`]+`/,  // Backtick command substitution
+  /\$\([^)]+\)/,  // $() command substitution
+
+  // Remote code execution
+  /\beval\b/,
+
+  // Fork bombs and resource exhaustion
+  /:\(\)/,  // :() pattern for fork bombs
+  /fork\(\)/,  // fork() pattern
+  /\bwhile\s+true\b/,
+  /\byes\b.*>\s*\/dev\/null/,
+
+  // Network tampering
+  /\biptables\b/,
+  /\bifconfig\b.*\bdown\b/,
+
+  // System file modification
+  />>?\s*\/etc\//,
+  />\s*\/etc\//,
+  /\bcat\b.*>\s*\/etc\//,
+  /\becho\b.*>\s*\/etc\//,
+
+  // Shell injection patterns - command chaining (dangerous in most contexts)
+  /;/,  // Semicolon command separator
+  /&&/,  // AND command chaining
+  /\|\|/,  // OR command chaining
+
+  // Obfuscation patterns
+  /[a-z]""[a-z]/,  // r""m style obfuscation
+
   // Path traversal attempts in sensitive operations
-  /^(cp|mv|ln)\b.*\.\.\//,
-  
+  /\b(cp|mv|ln)\b.*\.\.\//,
+
   // Symbolic link creation that could escape
   /\bln\s+-s/,
 ]
@@ -195,7 +224,7 @@ export function isCommandSafe(command: string, config?: SafetyConfig): { safe: b
       }
     }
 
-    return { safe: false, reason: `Dangerous command '${baseCmd}' is not allowed` }
+    return { safe: false, reason: `dangerous command '${baseCmd}' is not allowed` }
   }
 
   // Check for workspace escape attempts
@@ -216,7 +245,7 @@ export function isCommandSafe(command: string, config?: SafetyConfig): { safe: b
     return { safe: false, reason: 'Command attempts to escape workspace' }
   }
 
-  return { safe: true }
+  return { safe: true, reason: '' }
 }
 
 /**
