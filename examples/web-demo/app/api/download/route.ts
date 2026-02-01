@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createFileSystem, initConstellationFS } from '../../../lib/constellation-init'
+import { createFileSystem, initAgentBackend } from '../../../lib/backends-init'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
 
     console.log('Download API: sessionId =', JSON.stringify(sessionId))
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create FileSystem instance
     const fs = createFileSystem(sessionId)
@@ -36,8 +36,8 @@ export async function GET(request: NextRequest) {
 
   } catch (error) {
     console.error('Download error:', error)
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Download failed' 
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Download failed'
     }, { status: 500 })
   }
 }

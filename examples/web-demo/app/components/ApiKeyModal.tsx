@@ -34,8 +34,8 @@ export default function ApiKeyModal({ opened, onSubmit }: ApiKeyModalProps) {
   return (
     <Modal
       opened={opened}
-      onClose={() => {}}
-      title="Welcome to the ConstellationFS Codebuff demo!"
+      onClose={() => { }}
+      title="Welcome to the AgentBackend Codebuff demo!"
       closeOnClickOutside={false}
       closeOnEscape={false}
       withCloseButton={false}

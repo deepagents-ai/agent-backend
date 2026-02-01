@@ -12,14 +12,14 @@ importers:
         specifier: ^8.0.2
         version: 8.0.3
 
-  agentbe-server:
+  remote:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.0.4
         version: 1.25.3(hono@4.11.7)(zod@3.25.76)
-      constellationfs:
+      agent-backend:
         specifier: workspace:*
-        version: link:../constellation-typescript
+        version: link:../agent-backend
       express:
         specifier: ^4.21.2
         version: 4.22.1
@@ -58,7 +58,7 @@ importers:
         specifier: ^1.2.0
         version: 1.6.1(@types/node@20.19.30)
 
-  constellation-typescript:
+  agent-backend:
     dependencies:
       '@modelcontextprotocol/sdk':
         specifier: ^1.10.0

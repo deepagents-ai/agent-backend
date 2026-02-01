@@ -1,10 +1,10 @@
-# ConstellationFS Web Demo
+# AgentBackend Web Demo
 
-An interactive web demo showcasing ConstellationFS with the Codebuff SDK. Chat with AI agents and watch as they create files, run commands, and build projects using ConstellationFS.
+An interactive web demo showcasing AgentBackend with the Codebuff SDK. Chat with AI agents and watch as they create files, run commands, and build projects using AgentBackend.
 
 ## Features
 
-- 🤖 **AI Chat Interface**: Chat with AI agents powered by ConstellationFS and Codebuff SDK
+- 🤖 **AI Chat Interface**: Chat with AI agents powered by AgentBackend and Codebuff SDK
 - 📁 **Live File Explorer**: See filesystem changes in real-time
 - 🔄 **Streaming Responses**: Watch AI responses stream in like ChatGPT
 - 🛡️ **Safe Sandboxing**: Each session gets an isolated workspace
@@ -27,7 +27,7 @@ For testing remote backend functionality on macOS/Windows:
 
 1. **Build native library first**:
    ```bash
-   npx constellationfs build-native
+   npx agent-backend build-native
    ```
 
 2. **Start both services with Docker Compose**:
@@ -37,13 +37,13 @@ For testing remote backend functionality on macOS/Windows:
 
 This starts:
 - **web-demo** on `localhost:3000` (Linux container with LD_PRELOAD support)
-- **constellation-remote** backend on `localhost:2222` (SSH service)
+- **agent-backend-remote** backend on `localhost:2222` (SSH service)
 
 The web demo runs with LD_PRELOAD intercepting commands and routing them to the SSH backend.
 
 ### Deploy to Vercel
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/constellation-fs/constellation-fs/tree/main/examples/web-demo)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/agent-backend/agent-backend/tree/main/examples/web-demo)
 
 1. **One-click deploy** using the button above
 2. **Set environment variable**: Add your `ANTHROPIC_API_KEY` in Vercel dashboard
@@ -67,7 +67,7 @@ vercel env add ANTHROPIC_API_KEY
 ### Architecture
 
 ```
-Browser ←→ Next.js API Routes ←→ ConstellationFS ←→ Filesystem
+Browser ←→ Next.js API Routes ←→ AgentBackend ←→ Filesystem
    ↓              ↓                     ↓
 Chat UI    AI Processing         File Operations
    ↑              ↑                     ↑
@@ -84,7 +84,7 @@ Events       (Claude 3.5)        (/tmp/demo-${sessionId})
 ### User Flow
 
 1. User sends message via chat interface
-2. Backend creates isolated ConstellationFS workspace
+2. Backend creates isolated AgentBackend workspace
 3. AI processes message and performs filesystem operations
 4. Response streams to frontend in real-time
 5. File explorer updates when AI completes
@@ -113,15 +113,15 @@ Start a conversation with the AI assistant:
 
 ### Claude Code SDK Integration
 
-The demo now uses the official Claude Code SDK with custom ConstellationFS tools:
+The demo now uses the official Claude Code SDK with custom AgentBackend tools:
 
 ```typescript
 import { query, createSdkMcpServer, tool } from '@anthropic-ai/claude-code'
-import { FileSystem } from 'constellationfs'
+import { FileSystem } from 'agent-backend'
 
-// Create ConstellationFS tools for Claude
-const constellationFSServer = createSdkMcpServer({
-  name: "constellationfs",
+// Create AgentBackend tools for Claude
+const agentBackendServer = createSdkMcpServer({
+  name: "agent-backend",
   tools: [
     tool("fs_read", "Read file contents", /* ... */),
     tool("fs_write", "Write content to files", /* ... */),
@@ -134,8 +134,8 @@ const constellationFSServer = createSdkMcpServer({
 for await (const message of query({
   prompt: userMessage,
   options: {
-    mcpServers: { constellationfs: constellationFSServer },
-    allowedTools: ["mcp__constellationfs__fs_read", /* ... */]
+    mcpServers: { agent-backend: agentBackendServer },
+    allowedTools: ["mcp__agent-backend__fs_read", /* ... */]
   }
 })) {
   // Stream responses to client
@@ -145,7 +145,7 @@ for await (const message of query({
 ### Safety Features
 
 - **Workspace Isolation**: Each session gets a unique `/tmp` directory
-- **Dangerous Command Blocking**: ConstellationFS prevents harmful operations
+- **Dangerous Command Blocking**: AgentBackend prevents harmful operations
 - **Ephemeral Storage**: Workspaces are temporary and auto-cleaned
 - **Request Timeouts**: Long-running operations are limited
 
@@ -205,7 +205,7 @@ examples/web-demo/
 
 ## Contributing
 
-This demo is part of the ConstellationFS project. See the main [Contributing Guide](../../CONTRIBUTING.md) for development guidelines.
+This demo is part of the AgentBackend project. See the main [Contributing Guide](../../CONTRIBUTING.md) for development guidelines.
 
 ## License
 

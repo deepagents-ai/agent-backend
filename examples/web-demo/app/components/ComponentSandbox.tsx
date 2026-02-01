@@ -10,7 +10,7 @@ import {
 } from "@codesandbox/sandpack-react";
 import { Box, Button, Text } from "@mantine/core";
 import { IconReload } from "@tabler/icons-react";
-import React, {
+import {
   Component,
   ErrorInfo,
   ReactNode,
@@ -187,8 +187,8 @@ export default function ComponentSandbox({
   //           try {
   //             const pkg = JSON.parse(file.content);
   //             deps = { ...pkg.dependencies, ...pkg.devDependencies };
-  //             // Filter out local dependencies and ConstellationFS
-  //             delete deps["constellationfs"];
+  //             // Filter out local dependencies and AgentBackend
+  //             delete deps["agent-backend"];
   //             Object.keys(deps).forEach((key) => {
   //               if (
   //                 deps[key].startsWith("file:") ||
@@ -597,7 +597,7 @@ export default function ComponentSandbox({
           // Ensure we have all required files for Sandpack react-ts template
           ...(!files["/index.tsx"] && !files["/index.jsx"]
             ? {
-                "/index.tsx": `import React from 'react';
+              "/index.tsx": `import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './styles.css';
 import App from './App';
@@ -610,23 +610,23 @@ root.render(
     <App />
   </React.StrictMode>
 );`,
-              }
+            }
             : {}),
           ...(!files["/App.tsx"] && !files["/App.jsx"]
             ? {
-                "/App.tsx": `export default function App() {
+              "/App.tsx": `export default function App() {
   return (
     <div className="App">
-      <h1>ConstellationFS Workspace</h1>
+      <h1>AgentBackend Workspace</h1>
       <p>Check the file explorer to see your workspace files.</p>
     </div>
   );
 }`,
-              }
+            }
             : {}),
           ...(!files["/styles.css"]
             ? {
-                "/styles.css": `body {
+              "/styles.css": `body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
     'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
     sans-serif;
@@ -639,11 +639,11 @@ root.render(
 .App {
   text-align: center;
 }`,
-              }
+            }
             : {}),
           ...(!files["/public/index.html"]
             ? {
-                "/public/index.html": `<!DOCTYPE html>
+              "/public/index.html": `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
@@ -654,7 +654,7 @@ root.render(
   <div id="root"></div>
 </body>
 </html>`,
-              }
+            }
             : {}),
         }}
         customSetup={{
@@ -671,8 +671,8 @@ root.render(
                   (value.startsWith("file:") || value.startsWith("link:"))
                 )
                   return false;
-                // Remove ConstellationFS and other problematic packages
-                if (key === "constellationfs" || key === "ssh2") return false;
+                // Remove AgentBackend and other problematic packages
+                if (key === "agent-backend" || key === "ssh2") return false;
                 return true;
               }),
             ),

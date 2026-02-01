@@ -1,6 +1,6 @@
-# ConstellationFS Examples
+# AgentBackend Examples
 
-This directory contains example applications that demonstrate how to use ConstellationFS as an external consumer.
+This directory contains example applications that demonstrate how to use AgentBackend as an external consumer.
 
 ## Available Examples
 
@@ -22,18 +22,18 @@ npm run dev
 
 **For Remote Backend:**
 ```bash
-# Start ConstellationFS remote backend service
-cd ../constellation-typescript/remote/
+# Start AgentBackend remote backend service
+cd ../typescript/remote/
 docker-compose up -d
 
 # Build native library
 cd ../
-npx constellationfs build-native --output ./build/
+npx agent-backend build-native --output ./build/
 
 # Run with remote backend (Linux only)
 cd ../examples/web-demo/
 REMOTE_VM_HOST=root@localhost:2222 \
-LD_PRELOAD=../../constellation-typescript/build/libintercept.so \
+LD_PRELOAD=../../typescript/build/libintercept.so \
 npm run dev
 ```
 
@@ -44,7 +44,7 @@ Example integration with Codebuff SDK for AI agent development.
 
 ### Basic Local Backend
 ```javascript
-import { FileSystem } from 'constellationfs'
+import { FileSystem } from 'agent-backend'
 
 const fs = new FileSystem({ userId: 'user123' })
 await fs.exec('echo "Hello World"')
@@ -86,7 +86,7 @@ All examples demonstrate standard npm installation:
 ```json
 {
   "dependencies": {
-    "constellationfs": "file:../constellation-typescript/"
+    "agent-backend": "file:../typescript/"
   }
 }
 ```
@@ -95,26 +95,26 @@ In production, this would be:
 ```json
 {
   "dependencies": {
-    "constellationfs": "^1.0.0"
+    "agent-backend": "^1.0.0"
   }
 }
 ```
 
 ## Development Workflow
 
-1. **Install ConstellationFS**:
+1. **Install AgentBackend**:
    ```bash
-   npm install constellationfs
+   npm install agent-backend
    ```
 
 2. **Build native library** (if using remote backend):
    ```bash
-   npx constellationfs build-native --output ./build/
+   npx agent-backend build-native --output ./build/
    ```
 
 3. **Start remote backend** (optional):
    ```bash
-   docker run -p 2222:22 constellationfs/remote-backend
+   docker run -p 2222:22 agent-backend/remote-backend
    ```
 
 4. **Run your application**:
@@ -136,7 +136,7 @@ To add a new example:
 2. Add a complete, working application
 3. Include README with setup instructions
 4. Use standard npm installation patterns
-5. Demonstrate specific ConstellationFS features
+5. Demonstrate specific AgentBackend features
 6. Test on multiple platforms if applicable
 
 Examples should be:

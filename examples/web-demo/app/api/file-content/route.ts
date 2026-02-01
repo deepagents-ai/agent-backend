@@ -1,6 +1,6 @@
+import type { FileSystem } from 'agent-backend'
 import { NextRequest, NextResponse } from 'next/server'
-import { createFileSystem, initConstellationFS } from '../../../lib/constellation-init'
-import type { FileSystem } from 'constellationfs'
+import { createFileSystem, initAgentBackend } from '../../../lib/backends-init'
 
 // Cache FileSystem instances for better performance
 const fsCache = new Map<string, FileSystem>()
@@ -20,8 +20,8 @@ export async function GET(request: NextRequest) {
 
     console.log('File-content API: sessionId =', JSON.stringify(sessionId))
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create a cache key
     const cacheKey = sessionId
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
     try {
       const workspace = await fs.getWorkspace('default')
       const content = await workspace.readFile(filePath, 'utf-8')
-      
+
       const readTime = Date.now() - readStartTime
       const totalTime = Date.now() - startTime
       console.log(`[API] File read completed in ${readTime}ms, total API time: ${totalTime}ms`)

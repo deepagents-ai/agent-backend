@@ -1,21 +1,21 @@
 {
-  "name": "agent-backend-monorepo",
+  "name": "agent-backend",
   "version": "1.0.0",
   "private": true,
-  "description": "Agent Backend monorepo - client library and server infrastructure",
+  "description": "Agent Backend - client library and server infrastructure",
   "scripts": {
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "test:unit": "pnpm -r test:unit",
-    "test:integration": "cd constellation-typescript && npm run test:integration",
+    "test:integration": "cd remote && pnpm run test:integration",
     "test:all": "pnpm test:unit && pnpm test:integration",
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "dev": "pnpm -r --parallel dev"
   },
   "workspaces": [
-    "constellation-typescript",
-    "agentbe-server"
+    "agentbe-typescript",
+    "remote"
   ],
   "engines": {
     "node": ">=18.0.0",

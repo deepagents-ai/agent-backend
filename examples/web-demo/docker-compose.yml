@@ -2,35 +2,35 @@ version: '3.8'
 
 services:
   web-demo:
-    build: 
+    build:
       context: ../..
       dockerfile: examples/web-demo/Dockerfile
     ports:
       - "3000:3000"
     environment:
       - NODE_ENV=production
-      - REMOTE_VM_HOST=root@constellation-remote:22
-      - REMOTE_VM_PASSWORD=constellation
+      - REMOTE_VM_HOST=root@agent-backend-remote:22
+      - REMOTE_VM_PASSWORD=agents
       - LD_PRELOAD=/app/dist-native/libintercept.so
-      - CONSTELLATION_DEBUG=1
-      - CONSTELLATIONFS_APP_ID=web-demo-abc123
-      - NEXT_PUBLIC_CONSTELLATION_BACKEND_TYPE=remote
+      - AGENTBE_DEBUG=1
+      - AGENTBE_APP_ID=web-demo-abc123
+      - NEXT_PUBLIC_AGENTBE_TYPE=remote
     networks:
-      - constellation-net
+      - agent-be-net
     depends_on:
-      - constellation-remote
-  
-  # ConstellationFS Remote Backend
-  constellation-remote:
-    image: constellationfs/remote-backend:latest
+      - agent-backend-remote
+
+  # AgentBackend Remote Backend
+  agent-backend-remote:
+    image: agent-backend/remote:latest
     build:
-      context: ../../constellation-typescript
+      context: ../../typescript
       dockerfile: remote/Dockerfile.runtime
     ports:
       - "2222:22"
     networks:
-      - constellation-net
+      - agent-be-net
 
 networks:
-  constellation-net:
+  agent-be-net:
     driver: bridge

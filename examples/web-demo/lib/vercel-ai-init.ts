@@ -1,6 +1,6 @@
 import { experimental_createMCPClient as createMCPClient } from '@ai-sdk/mcp'
 import { createOpenRouter } from '@openrouter/ai-sdk-provider'
-import { createFileSystem } from './constellation-init'
+import { createFileSystem } from './backends-init'
 
 /**
  * MCP client wrapper that holds the client and tools.
@@ -12,7 +12,7 @@ export interface MCPToolsClient {
 }
 
 /**
- * Create an MCP client connected to the ConstellationFS MCP server.
+ * Create an MCP client connected to the AgentBackend MCP server.
  * Returns tools that can be passed to Vercel AI SDK's streamText/generateText.
  *
  * Uses FileSystem.getMCPTransport() which automatically handles:

@@ -1,15 +1,15 @@
-import type { Metadata } from 'next'
-import { MantineProvider } from '@mantine/core'
-import { Notifications } from '@mantine/notifications'
-import './globals.css'
-import '@mantine/core/styles.css'
-import '@mantine/notifications/styles.css'
-import '@mantine/dropzone/styles.css'
 import '@mantine/code-highlight/styles.css'
+import { MantineProvider } from '@mantine/core'
+import '@mantine/core/styles.css'
+import '@mantine/dropzone/styles.css'
+import { Notifications } from '@mantine/notifications'
+import '@mantine/notifications/styles.css'
+import type { Metadata } from 'next'
+import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'ConstellationFS Demo',
-  description: 'Interactive AI coding assistant powered by ConstellationFS',
+  title: 'AgentBackend Demo',
+  description: 'Interactive AI coding assistant powered by AgentBackend',
 }
 
 export default function RootLayout({
@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <MantineProvider 
+        <MantineProvider
           defaultColorScheme="dark"
           theme={{
             primaryColor: 'blue',

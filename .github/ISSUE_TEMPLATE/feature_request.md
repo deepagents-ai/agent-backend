@@ -1,6 +1,6 @@
 ---
 name: Feature Request
-about: Suggest a new feature for ConstellationFS
+about: Suggest a new feature for AgentBackend
 title: '[FEATURE] '
 labels: enhancement
 assignees: ''

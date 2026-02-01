@@ -1,6 +1,6 @@
-# Contributing to ConstellationFS
+# Contributing to AgentBackend
 
-Thank you for your interest in contributing to ConstellationFS! We welcome contributions from everyone, whether you're fixing bugs, adding features, improving documentation, or helping with other aspects of the project.
+Thank you for your interest in contributing to AgentBackend! We welcome contributions from everyone, whether you're fixing bugs, adding features, improving documentation, or helping with other aspects of the project.
 
 ## Code of Conduct
 
@@ -43,8 +43,8 @@ We welcome feature suggestions! Please:
 
 1. **Fork and clone the repository**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/constellation-fs.git
-   cd constellation-fs
+   git clone https://github.com/YOUR_USERNAME/agent-backend.git
+   cd agent-backend
    ```
 
 2. **Install dependencies**
@@ -76,18 +76,17 @@ We welcome feature suggestions! Please:
    - Add tests for new functionality
    - Update documentation as needed
 
-3. **Run quality checks**
+3. **Run quality checks & tests**
    ```bash
-   npm run lint        # Check code style
-   npm run typecheck   # Verify TypeScript types
-   npm test           # Run tests
-   npm run build      # Ensure it builds
+   pnpm run typecheck   # Verify TypeScript types
+   pnpm run build       # Ensure it builds
+   pnpm test --run      # Run tests
    ```
 
 4. **Commit your changes**
    ```bash
    git add .
-   git commit -m "feat: add new feature" # Use conventional commits
+   git commit -m "feat: add new feature"
    ```
 
 5. **Push and create a pull request**
@@ -114,9 +113,8 @@ We welcome feature suggestions! Please:
 ### Testing
 
 - Write tests for new features and bug fixes
+- Prefer unit tests over integration tests
 - Use descriptive test names
-- Test both happy path and edge cases
-- Aim for good test coverage
 
 ### Commit Messages
 
@@ -132,35 +130,10 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 Examples:
 ```
-feat: add userId-based workspace management
-fix: handle edge case in path resolution
-docs: update README with new examples
+feat(agentbe-typescript): add userId-based workspace management
+fix(remote): handle edge case in path resolution
+docs(agentbe): update README with new examples
 ```
-
-## Architecture Guidelines
-
-### Backend Design
-
-When adding new backends:
-- Implement the `FileSystemBackend` interface
-- Follow the existing pattern in `LocalBackend`
-- Add comprehensive error handling
-- Include validation and security checks
-
-### Safety First
-
-ConstellationFS prioritizes security:
-- Validate all user inputs
-- Prevent directory traversal attacks
-- Block dangerous operations by default
-- Use workspace isolation
-
-### Cross-Platform Support
-
-- Test on different operating systems
-- Use Node.js built-in modules when possible
-- Handle path separators correctly
-- Consider shell differences
 
 ## Pull Request Process
 
@@ -183,14 +156,6 @@ ConstellationFS prioritizes security:
 
 ## Documentation
 
-### README Updates
-
-When adding features, update the README:
-- Add new examples
-- Document configuration options
-- Update API references
-- Keep it concise and practical
-
 ### Code Documentation
 
 - Use JSDoc for public APIs
@@ -212,7 +177,6 @@ Releases are handled by maintainers:
 - **Questions**: Use GitHub Discussions
 - **Bugs**: Create an issue with the bug template
 - **Features**: Create an issue with the feature template
-- **Security**: See our [Security Policy](SECURITY.md)
 
 ## Recognition
 
@@ -223,8 +187,8 @@ Contributors are recognized in:
 
 ## License
 
-By contributing to ConstellationFS, you agree that your contributions will be licensed under the MIT License.
+By contributing, you agree that your contributions will be licensed under the MIT License.
 
 ---
 
-Thank you for contributing to ConstellationFS! 🌟
+Thank you for contributing to AgentBackend! 🌟

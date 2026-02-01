@@ -5,12 +5,12 @@ on:
     branches:
       - main
     paths:
-      - 'constellation-typescript/package.json'
+      - 'typescript/package.json'
   workflow_dispatch:  # Allow manual trigger
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/constellation-remote
+  IMAGE_NAME: ${{ github.repository_owner }}/agent-backend-remote
 
 jobs:
   build-and-push:
@@ -29,11 +29,11 @@ jobs:
         id: version-check
         run: |
           # Get current version
-          CURRENT_VERSION=$(node -p "require('./constellation-typescript/package.json').version")
+          CURRENT_VERSION=$(node -p "require('./typescript/package.json').version")
           echo "Current version: $CURRENT_VERSION"
 
           # Get previous version (from parent commit)
-          PREVIOUS_VERSION=$(git show HEAD~1:constellation-typescript/package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null || echo "")
+          PREVIOUS_VERSION=$(git show HEAD~1:typescript/package.json 2>/dev/null | node -p "JSON.parse(require('fs').readFileSync(0, 'utf8')).version" 2>/dev/null || echo "")
           echo "Previous version: $PREVIOUS_VERSION"
 
           if [ "$CURRENT_VERSION" != "$PREVIOUS_VERSION" ]; then
@@ -73,15 +73,15 @@ jobs:
         if: steps.version-check.outputs.changed == 'true'
         uses: docker/build-push-action@v5
         with:
-          context: ./constellation-typescript
-          file: ./constellation-typescript/remote/Dockerfile.runtime
+          context: ./typescript
+          file: ./typescript/remote/Dockerfile.runtime
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: |
             ${{ steps.meta.outputs.labels }}
             org.opencontainers.image.version=${{ steps.version-check.outputs.version }}
-            com.constellationfs.version=${{ steps.version-check.outputs.version }}
+            com.agentbe.version=${{ steps.version-check.outputs.version }}
           build-args: |
-            CONSTELLATIONFS_VERSION=${{ steps.version-check.outputs.version }}
+            AGENTBE_VERSION=${{ steps.version-check.outputs.version }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

@@ -4,11 +4,11 @@ import { Box, Button, Container, Group, Tabs, Text } from '@mantine/core';
 import { IconReload } from '@tabler/icons-react';
 import { useEffect, useState } from 'react';
 import ApiKeyModal from './components/ApiKeyModal';
-import StatusBar from './components/StatusBar';
 import Chat from './components/Chat';
 import ComponentSandbox from './components/ComponentSandbox';
 import FileExplorer from './components/FileExplorer';
 import FileViewer from './components/FileViewer';
+import StatusBar from './components/StatusBar';
 
 function FileExplorerTab({
   sessionId,
@@ -38,7 +38,7 @@ export default function Home() {
   const [showApiKeyModal, setShowApiKeyModal] = useState(false);
   const [activeTab, setActiveTab] = useState<string | null>("files");
   // Get backend type from environment (set at build time)
-  const backendType = (process.env.NEXT_PUBLIC_CONSTELLATION_BACKEND_TYPE as 'local' | 'remote') || 'local';
+  const backendType = (process.env.NEXT_PUBLIC_AGENTBE_TYPE as 'local' | 'remote') || 'local';
   const [showTabs, setShowTabs] = useState(true);
   const [sandboxFileCount, setSandboxFileCount] = useState(0);
   const [sandboxForceRestart, setSandboxForceRestart] = useState(false);
@@ -692,12 +692,12 @@ export default function Home() {
                 }}
               >
                 ✨ SECURE • SANDBOXED • FILESYSTEM • CHARLES ✨ THE • SARDINE 🐟
-                • EATER • EXCELLENCE ✨ FUSE • SSH • DOCKER • CONSTELLATION ✨
+                • EATER • EXCELLENCE ✨ FUSE • SSH • DOCKER • AGENT ✨
                 SECURE • SANDBOXED • FILESYSTEM • INNOVATION ✨ TYPESCRIPT •
                 PYTHON • MULTI-BACKEND • EXCELLENCE ✨ FUSE • SSH • DOCKER •
-                CONSTELLATION ✨ SECURE • SANDBOXED • FILESYSTEM • FIRE 🔥
+                AGENT ✨ SECURE • SANDBOXED • FILESYSTEM • FIRE 🔥
                 TYPESCRIPT • PYTHON • MULTI-BACKEND • EXCELLENCE ✨ FUSE • SSH •
-                DOCKER • CONSTELLATION ✨
+                DOCKER • AGENT ✨
               </Text>
             </Box>
           </Box>

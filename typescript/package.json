@@ -1,0 +1,90 @@
+{
+  "name": "agent-backend",
+  "version": "0.6.5",
+  "description": "A backend abstraction for AI agents enabling memory, filesystem usage, and code execution",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist",
+    "native",
+    "scripts",
+    "src"
+  ],
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:all": "npm run test:unit && npm run test:integration",
+    "test:run": "vitest run",
+    "lint": "eslint src",
+    "lint:fix": "eslint src --fix",
+    "format": "prettier --write .",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "filesystem",
+    "ai",
+    "agents",
+    "bash",
+    "typescript",
+    "tools"
+  ],
+  "author": "AgentBackend Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agent-backend/agent-backend.git"
+  },
+  "bugs": {
+    "url": "https://github.com/agent-backend/agent-backend/issues"
+  },
+  "homepage": "https://github.com/agent-backend/agent-backend#readme",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.10.0",
+    "@types/minimatch": "^5.1.2",
+    "buffer": "^6.0.3",
+    "express": "^5.1.0",
+    "minimatch": "^10.1.1",
+    "ssh2": "^1.16.0",
+    "zod": "^4.1.5"
+  },
+  "optionalDependencies": {
+    "node-gyp": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.2",
+    "@types/node": "^22.10.0",
+    "@types/ssh2": "^1.15.5",
+    "@typescript-eslint/eslint-plugin": "^8.18.0",
+    "@typescript-eslint/parser": "^8.18.0",
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.1",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.1",
+    "vite-plugin-dts": "^4.3.0",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "directories": {
+    "example": "examples",
+    "test": "tests"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./mcp": {
+      "types": "./dist/mcp/index.d.ts",
+      "import": "./dist/mcp/index.js"
+    },
+    "./package.json": "./package.json"
+  }
+}

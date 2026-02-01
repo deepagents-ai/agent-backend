@@ -1,5 +1,5 @@
 {
-  "name": "constellation-fs-demo",
+  "name": "agent-backend-demo",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -24,7 +24,7 @@
     "@tabler/icons-react": "^3.34.1",
     "@types/ws": "^8.18.1",
     "ai": "^5.0.0",
-    "constellationfs": "file:../../constellation-typescript/",
+    "agent-backend": "file:../../typescript/",
     "next": "^15.5.2",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",

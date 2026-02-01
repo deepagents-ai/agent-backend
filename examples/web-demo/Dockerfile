@@ -5,16 +5,16 @@ RUN apt-get update && apt-get install -y openssh-client sshpass bash && rm -rf /
 
 WORKDIR /app
 
-# Copy the local ConstellationFS package (for development)
+# Copy the local AgentBackend package (for development)
 # NOTE: This is development-specific for using file:// dependency
 # Production consumers would use published npm package instead
-COPY constellation-typescript /constellationfs-local
+COPY typescript /agent-backend-local
 
 # Copy web-demo source code (including pre-built native library)
 COPY examples/web-demo .
 
-# Fix the ConstellationFS dependency path for Docker build
-RUN sed -i 's|"constellationfs": "file:../../constellation-typescript/"|"constellationfs": "file:/constellationfs-local"|g' package.json
+# Fix the AgentBackend dependency path for Docker build
+RUN sed -i 's|"agent-backend": "file:../../typescript/"|"agent-backend": "file:/agent-backend-local"|g' package.json
 
 # Install dependencies
 RUN npm install

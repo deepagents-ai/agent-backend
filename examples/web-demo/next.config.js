@@ -9,7 +9,7 @@ const nextConfig = {
     '@codebuff/sdk',
     'ssh2',
     'node-fuse-bindings',
-    'constellationfs'
+    'agent-backend'
   ],
   webpack: (config, { isServer }) => {
     if (isServer) {
@@ -18,14 +18,14 @@ const nextConfig = {
         ...config.resolve.alias,
         'tree-sitter.wasm': false,
       }
-      
+
       // Mark native dependencies as external for server-side
       config.externals.push(
         'ssh2',
-        'node-fuse-bindings', 
+        'node-fuse-bindings',
         'cpu-features'
       )
-      
+
       // Ignore native modules that can't be bundled
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -34,26 +34,26 @@ const nextConfig = {
         'bufferutil': false
       }
     }
-    
+
     // Handle WASM files
     config.module.rules.push({
       test: /\.wasm$/,
       type: 'webassembly/async',
     })
-    
+
     // Enable WebAssembly experiments
     config.experiments = {
       ...config.experiments,
       asyncWebAssembly: true,
       syncWebAssembly: true,
     }
-    
+
     // Handle .scm files (Tree-sitter query files)
     config.module.rules.push({
       test: /\.scm$/,
       type: 'asset/source',
     })
-    
+
     // Configure webpack cache to use filesystem instead of memory
     // This eliminates the "Serializing big strings" warnings
     config.cache = {
@@ -67,7 +67,7 @@ const nextConfig = {
       maxAge: 60000 * 60 * 24 * 7, // 1 week
       maxMemoryGenerations: 1, // Minimize memory usage
     }
-    
+
     return config
   }
 }

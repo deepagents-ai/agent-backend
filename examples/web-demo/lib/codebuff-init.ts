@@ -1,8 +1,8 @@
 import { CodebuffClient } from '@codebuff/sdk'
-import { type FileSystem } from 'constellationfs'
+import { type FileSystem } from 'agent-backend'
 
 /**
- * Create a new Codebuff client with ConstellationFS workspace.
+ * Create a new Codebuff client with AgentBackend workspace.
  * Uses direct workspace integration (fsSource).
  *
  * Clients are stateless, so we create a new instance for each request.

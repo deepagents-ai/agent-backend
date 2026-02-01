@@ -1,10 +1,10 @@
 import { CodebuffClient } from "@codebuff/sdk";
-import { streamText, stepCountIs } from "ai";
-import type { FileSystem } from "constellationfs";
+import type { FileSystem } from "agent-backend";
+import { stepCountIs, streamText } from "ai";
 import { NextRequest, NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { createFileSystem, initAgentBackend, isMCPMode } from "../../../lib/backends-init";
 import { getCodebuffClient } from "../../../lib/codebuff-init";
-import { createFileSystem, initConstellationFS, isMCPMode } from "../../../lib/constellation-init";
 import { broadcastToStream } from "../../../lib/streams";
 import { createMCPToolsClient, getModel, SYSTEM_PROMPT, type MCPToolsClient } from "../../../lib/vercel-ai-init";
 
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
     const streamId = uuidv4();
     console.log("[API] Stream ID created:", streamId);
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create FileSystem instance
     console.log("[API] Initializing FileSystem");

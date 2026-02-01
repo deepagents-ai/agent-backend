@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createFileSystem, initConstellationFS } from '../../../lib/constellation-init'
+import { createFileSystem, initAgentBackend } from '../../../lib/backends-init'
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
 
     console.log('Upload API: sessionId =', JSON.stringify(sessionId))
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create FileSystem instance
     const fs = createFileSystem(sessionId)
@@ -27,16 +27,16 @@ export async function POST(request: NextRequest) {
     const workspace = await fs.getWorkspace('default')
     await workspace.write(file.name, content)
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       message: `File "${file.name}" uploaded successfully`,
-      filename: file.name 
+      filename: file.name
     })
 
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ 
-      error: error instanceof Error ? error.message : 'Upload failed' 
+    return NextResponse.json({
+      error: error instanceof Error ? error.message : 'Upload failed'
     }, { status: 500 })
   }
 }

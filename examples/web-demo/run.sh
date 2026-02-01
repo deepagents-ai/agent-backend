@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# ConstellationFS Web Demo Runner
-# Simple runner for the web demo as a standard ConstellationFS consumer
+# AgentBackend Web Demo Runner
+# Simple runner for the web demo as a standard AgentBackend consumer
 
 set -e
 
@@ -30,7 +30,7 @@ error() {
 
 # Show usage information
 show_usage() {
-    echo -e "${GREEN}🚀 ConstellationFS Web Demo${NC}"
+    echo -e "${GREEN}🚀 AgentBackend Web Demo${NC}"
     echo ""
     echo "Usage: $0 [OPTIONS]"
     echo ""
@@ -43,8 +43,8 @@ show_usage() {
     echo "  • Remote Backend: SSH to Docker container"
     echo ""
     echo "For Remote Backend development:"
-    echo "  npm install --save-dev @constellationfs/docker-dev"
-    echo "  npx @constellationfs/docker-dev start"
+    echo "  npm install --save-dev @agent-backend/docker-dev"
+    echo "  npx @agent-backend/docker-dev start"
     echo ""
 }
 
@@ -53,15 +53,15 @@ check_docker_env() {
     log "Checking for Docker development environment..."
     
     if command -v docker >/dev/null 2>&1; then
-        if docker ps --format "table {{.Names}}" | grep -q "constellation-fs"; then
-            success "ConstellationFS Docker environment is running"
-            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep "constellation-fs"
+        if docker ps --format "table {{.Names}}" | grep -q "agent-backend"; then
+            success "AgentBackend Docker environment is running"
+            docker ps --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}" | grep "agent-backend"
         else
-            warn "ConstellationFS Docker environment not running"
+            warn "AgentBackend Docker environment not running"
             echo ""
             log "To start the Docker development environment:"
-            echo "  npm install --save-dev @constellationfs/docker-dev"
-            echo "  npx @constellationfs/docker-dev start"
+            echo "  npm install --save-dev @agent-backend/docker-dev"
+            echo "  npx @agent-backend/docker-dev start"
         fi
     else
         warn "Docker not available"
@@ -104,13 +104,13 @@ main() {
     fi
     
     echo -e "${BLUE}"
-    echo "🌟 ConstellationFS Web Demo"
+    echo "🌟 AgentBackend Web Demo"
     echo "=========================="
     echo -e "${NC}"
     
-    log "Starting web demo as ConstellationFS consumer..."
+    log "Starting web demo as AgentBackend consumer..."
     echo ""
-    success "ConstellationFS package will handle platform detection automatically"
+    success "AgentBackend package will handle platform detection automatically"
     echo ""
     log "Backend options available in web demo:"
     echo "  🏠 Local Backend: Direct filesystem access (always works)"

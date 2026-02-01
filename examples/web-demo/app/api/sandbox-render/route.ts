@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createFileSystem, initConstellationFS } from '../../../lib/constellation-init'
+import { createFileSystem, initAgentBackend } from '../../../lib/backends-init'
 
 export async function GET(request: NextRequest) {
   try {
@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
 
     console.log('Sandbox-render API: sessionId =', JSON.stringify(sessionId))
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create FileSystem instance
     const fs = createFileSystem(sessionId)
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       const workspace = await fs.getWorkspace('default')
       const componentCode = await workspace.readFile(filePath, 'utf-8') as string
       const html = generateEnhancedSandboxHTML(componentCode, filePath)
-      
+
       return new NextResponse(html, {
         headers: {
           'Content-Type': 'text/html; charset=utf-8',
@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
           <p>${errorMessage}</p>
         </body>
         </html>
-      `, { 
+      `, {
         status: 404,
         headers: { 'Content-Type': 'text/html' }
       })
@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 
 function generateEnhancedSandboxHTML(componentCode: string, filePath: string): string {
   const transformedCode = transformComponentCodeEnhanced(componentCode)
-  
+
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -233,7 +233,7 @@ function generateEnhancedSandboxHTML(componentCode: string, filePath: string): s
 function transformComponentCodeEnhanced(code: string): string {
   // Remove imports
   let transformed = code.replace(/^import\s+.*?from\s+['"].*?['"];?$/gm, '')
-  
+
   // Remove exports but keep the declarations
   transformed = transformed
     .replace(/^export\s+default\s+function/gm, 'function')
@@ -241,7 +241,7 @@ function transformComponentCodeEnhanced(code: string): string {
     .replace(/^export\s+function/gm, 'function')
     .replace(/^export\s+const/gm, 'const')
     .replace(/^export\s+/gm, '')
-  
+
   // Basic TypeScript removal (more comprehensive)
   transformed = transformed
     // Remove type annotations
@@ -258,6 +258,6 @@ function transformComponentCodeEnhanced(code: string): string {
     .replace(/\breadonly\s+/g, '')
     // Remove public/private/protected modifiers
     .replace(/\b(public|private|protected)\s+/g, '')
-  
+
   return transformed
 }

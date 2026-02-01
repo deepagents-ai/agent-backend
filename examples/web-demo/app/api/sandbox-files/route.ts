@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createFileSystem, initConstellationFS } from '../../../lib/constellation-init';
+import { createFileSystem, initAgentBackend } from '../../../lib/backends-init';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,8 +12,8 @@ export async function GET(request: NextRequest) {
 
     console.log('Sandbox-files API: sessionId =', JSON.stringify(sessionId))
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create a new FileSystem instance each time to avoid caching issues
     const fs = createFileSystem(sessionId);
@@ -62,21 +62,21 @@ export async function GET(request: NextRequest) {
           // Fall back to simple ls if recursive doesn't work
           lsResult = await workspace.exec('ls');
         }
-        
+
         if (typeof lsResult !== 'string' || !lsResult.trim()) {
           console.log('[sandbox-files] No files found');
           return;
         }
-        
+
         // Parse ls -R output
         if (lsResult.includes(':')) {
           // This is recursive ls output
           const sections = lsResult.split(/\n\n/);
           let currentDir = '';
-          
+
           for (const section of sections) {
             const lines = section.split('\n').filter(Boolean);
-            
+
             for (const line of lines) {
               // Check if this line indicates a directory
               if (line.endsWith(':')) {
@@ -87,22 +87,22 @@ export async function GET(request: NextRequest) {
                 }
                 continue;
               }
-              
+
               // Skip if we're in a directory we want to skip
               if (currentDir === 'SKIP') {
                 continue;
               }
-              
+
               // Skip empty lines and special entries
               if (!line || line === '.' || line === '..' || line.startsWith('.')) {
                 continue;
               }
-              
+
               // Skip node_modules
               if (line.includes('node_modules')) {
                 continue;
               }
-              
+
               // Build the full path
               const fullPath = currentDir ? `${currentDir}/${line}` : line;
               await processPath(fullPath);
@@ -111,12 +111,12 @@ export async function GET(request: NextRequest) {
         } else {
           // Simple ls output - just top-level files
           const fileNames = lsResult.split('\n').filter(Boolean);
-          
+
           for (const fileName of fileNames) {
             if (!fileName || fileName.includes('node_modules')) {
               continue;
             }
-            
+
             await processPath(fileName);
           }
         }
@@ -124,15 +124,15 @@ export async function GET(request: NextRequest) {
         console.log('[sandbox-files] Error getting files:', err);
       }
     }
-    
+
     try {
       await getAllFiles();
     } catch (err) {
       console.log('[sandbox-files] Failed to get files:', err);
     }
-    
+
     console.log('[sandbox-files] Returning', files.length, 'files');
-    
+
     return NextResponse.json({ files }, {
       headers: {
         'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',

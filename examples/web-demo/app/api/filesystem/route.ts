@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createFileSystem, initConstellationFS } from '../../../lib/constellation-init'
+import { createFileSystem, initAgentBackend } from '../../../lib/backends-init'
 
 interface FileItem {
   path: string
@@ -18,8 +18,8 @@ export async function GET(request: NextRequest) {
 
     console.log('Filesystem API: sessionId =', JSON.stringify(sessionId))
 
-    // Initialize ConstellationFS configuration
-    initConstellationFS()
+    // Initialize AgentBackend configuration
+    initAgentBackend()
 
     // Create FileSystem instance
     console.log('Initializing FileSystem...')
@@ -52,9 +52,9 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Filesystem API Error:', error)
     if (error instanceof Error) {
-      return NextResponse.json({ 
-        error: 'Failed to read filesystem', 
-        details: error.message 
+      return NextResponse.json({
+        error: 'Failed to read filesystem',
+        details: error.message
       }, { status: 500 })
     }
     return NextResponse.json({ error: 'Failed to read filesystem' }, { status: 500 })
@@ -73,7 +73,7 @@ function parseRemoteFileTree(output: string): FileItem[] {
 
     // Heuristic: if it has an extension or doesn't end with common directory patterns, treat as file
     const isFile = name.includes('.') && !name.endsWith('/') &&
-                   !(['bin', 'lib', 'etc', 'usr', 'var', 'tmp', 'opt'].includes(name))
+      !(['bin', 'lib', 'etc', 'usr', 'var', 'tmp', 'opt'].includes(name))
 
     files.push({
       path,

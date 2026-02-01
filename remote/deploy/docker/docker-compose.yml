@@ -1,0 +1,58 @@
+# Agent Backend Remote Service
+# Docker Compose configuration for easy deployment
+
+services:
+  remote-backend:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile.runtime
+    image: agentbe/remote-backend:latest
+    container_name: agentbe-remote-backend
+    ports:
+      - "2222:22" # SSH port mapping
+      - "3001:3001" # MCP server port
+    volumes:
+      - ./workspace:/workspace # Persistent workspace
+      # - ./keys:/keys:ro        # SSH keys (uncomment if needed)
+    environment:
+      # Multi-user configuration (comma-separated)
+      - SSH_USERS=dev:devpassword,admin:adminpassword
+
+      # Workspace configuration
+      - WORKSPACE_ROOT=/agent-backend
+      - ENABLE_LOGGING=true
+
+      # MCP server configuration
+      - MCP_PORT=3001
+      - MCP_AUTH_TOKEN=your-secure-auth-token # Change this!
+      # SSH key configuration (optional)
+      # - SSH_PUBLIC_KEY=ssh-rsa AAAAB3N...your-key-here
+
+    devices:
+      - /dev/fuse:/dev/fuse
+
+    cap_add:
+      - SYS_ADMIN
+
+    security_opt:
+      - apparmor:unconfined
+
+    restart: unless-stopped
+
+    # Health check
+    healthcheck:
+      test: [ "CMD", "service", "ssh", "status" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+# Optional: Create a development network
+networks:
+  agentbe:
+    driver: bridge
+
+# Optional: Named volume for workspace persistence
+volumes:
+  workspace:
+    driver: local

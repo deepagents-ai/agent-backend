@@ -279,10 +279,10 @@ process.on('SIGTERM', () => pool.destroyAll())
 
 ## Server Deployment
 
-For remote backend deployment, use the `agentbe-server` package:
+For remote backend deployment, use the `remote` package:
 
 ```bash
-npm install -g agentbe-server
+npm install -g remote
 ```
 
 ### Start MCP Server
@@ -316,7 +316,7 @@ const fs = new RemoteFilesystemBackend({
   port: 2222,
   sshAuth: {
     type: 'password',
-    credentials: { username: 'root', password: 'constellation' }
+    credentials: { username: 'root', password: 'agents' }
   }
 })
 ```
@@ -494,7 +494,6 @@ const scopedBackend: ScopedBackend<LocalFilesystemBackend> = fs.scope('project')
 - [Configuration Options](docs/configuration.md)
 - [Security & Isolation](docs/security.md)
 - [MCP Integration](docs/mcp.md)
-- [Migration from ConstellationFS](docs/migration.md)
 
 ---
 
