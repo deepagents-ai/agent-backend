@@ -71,27 +71,10 @@ export type {
 // MCP Integration (Client-side)
 // ============================================================================
 
-// TODO Phase 8: MCP Server API moved to agentbe-server package
-// export {
-//   startMCPServer,
-//   type MCPServerOptions
-// } from './mcp/server.js'
-
-// TODO Phase 8: registerTools moved to agentbe-server package
-// export { registerTools } from './mcp/tools.js'
-
-// MCP Client
+// MCP Client for connecting to MCP servers
 export {
     createAgentBeMCPClient,
     createAgentBeMCPTransport,
     type AgentBeMCPClientOptions,
     type CreateMCPClientOptions
 } from './mcp/client.js'
-
-// TODO Phase 8: local-client uses archived Config.js - temporarily excluded
-// export {
-//   createLocalAgentBeMCPClient,
-//   createLocalAgentBeMCPTransportOptions,
-//   type CreateLocalMCPClientOptions,
-//   type LocalAgentBeMCPClientOptions
-// } from './mcp/local-client.js'

@@ -6,8 +6,15 @@ Secure, isolated backend for AI agents.
 
 ### Development Commands
 
+From monorepo root (recommended):
 ```bash
-pnpm install         # Install dependencies
+make build-typescript   # Build this package
+make test-typescript    # Run tests
+make typecheck          # Type check all packages
+```
+
+From this directory:
+```bash
 pnpm run build       # Production build
 pnpm run typecheck   # TypeScript validation
 pnpm test --run      # Run tests once

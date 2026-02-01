@@ -82,6 +82,9 @@ importers:
         specifier: ^4.1.5
         version: 4.3.6
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.39.2
+        version: 9.39.2
       '@types/express':
         specifier: ^5.0.2
         version: 5.0.6

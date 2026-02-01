@@ -4,29 +4,27 @@ Secure, isolated backend for AI agents supporting code execution, file operation
 
 ## Project Structure
 
-```
-agentbe-typescript/src/
-├── backends/                   # Backend implementations
-│   ├── LocalFilesystemBackend.ts    # Local file + exec operations
-│   ├── RemoteFilesystemBackend.ts   # Remote via SSH
-│   ├── MemoryBackend.ts             # In-memory key/value
-│   ├── ScopedFilesystemBackend.ts   # Scoped filesystem wrapper
-│   ├── ScopedMemoryBackend.ts       # Scoped memory wrapper
-│   └── pathValidation.ts            # Path security utilities
-├── mcp/                        # Model Context Protocol integration
-├── logging/                    # Operations logging
-├── utils/                      # Shared utilities
-├── BackendPoolManager.ts       # Connection pooling
-├── safety.ts                   # Command safety validation
-├── types.ts                    # Type definitions & errors
-└── index.ts                    # Public exports
+Multi-language monorepo (TypeScript + Python):
 
-remote/
-├── src/mcp/servers/           # MCP server implementations
-│   ├── LocalFilesystemMCPServer.ts
-│   ├── MemoryMCPServer.ts
-│   └── RemoteFilesystemMCPServer.ts
-└── tests/unit/                # Unit tests
+```
+typescript/src/                # Core library (published as agent-backend)
+├── backends/                  # Backend implementations
+├── mcp/                       # MCP client integration
+├── logging/                   # Operations logging
+├── BackendPoolManager.ts      # Connection pooling
+├── safety.ts                  # Command safety validation
+└── index.ts                   # Public exports
+
+remote/src/mcp/servers/        # MCP server implementations (agentbe-server)
+├── LocalFilesystemMCPServer.ts
+├── MemoryMCPServer.ts
+└── RemoteFilesystemMCPServer.ts
+
+python/                        # Python bindings (future)
+
+Makefile                       # Multi-language build orchestration
+manage.sh                      # Publishing & deployment
+pnpm-workspace.yaml            # TypeScript workspace config
 ```
 
 ## Architecture
@@ -121,14 +119,28 @@ pnpm test --run             # Run all tests
 pnpm -r <command>           # Run in all packages
 ```
 
-## Development Notes
+## Development
 
-- **Monorepo**: Uses pnpm workspaces (`agentbe-typescript`, `remote`)
-- **Package Name**: Published as `agent-backend` (formerly `agent-backend`)
-- **Breaking Change**: v0.6.0 renamed from AgentBackend → AgentBackend
-- **MCP Servers**: Wrap backends with tool tracking for MCP compatibility
-- **Connection Status**: Scoped backends read `connected` from parent dynamically
-- **Config Overrides**: BackendPoolManager supports per-request config merging
+**Build System**: Makefile for multi-language orchestration
+
+```bash
+make help           # Show all commands
+make build          # Build all packages
+make test           # Run all tests
+make typecheck      # Type check everything
+make ci             # Full CI pipeline
+```
+
+Language-specific: `make build-typescript`, `make test-python`
+
+**Workspace**: pnpm manages TypeScript packages (`typescript`, `remote`). Python managed separately.
+
+**Package Names**: `agent-backend` (TypeScript core), `agentbe-server` (MCP servers)
+
+**Key Notes**:
+- Scoped backends read `connected` from parent dynamically (getter, not property)
+- BackendPoolManager supports per-request config overrides
+- MCP servers wrap backends with tool tracking for compatibility
 
 ## Key Files to Understand
 

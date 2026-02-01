@@ -8,10 +8,7 @@ export default defineConfig({
       include: ['src/**/*'],
       exclude: [
         '**/*.test.ts',
-        'tests/**/*',
-        // TODO Phase 8: Exclude files with archived dependencies
-        'src/mcp/server.ts',
-        'src/mcp/local-client.ts'
+        'tests/**/*'
       ]
     })
   ],
@@ -20,9 +17,6 @@ export default defineConfig({
       entry: {
         index: path.resolve(__dirname, 'src/index.ts'),
         'mcp/index': path.resolve(__dirname, 'src/mcp/index.ts'),
-        // TODO Phase 8: mcp/server.ts will move to agentbe-server package
-        // Temporarily excluded from build due to archived dependencies
-        // 'mcp/server': path.resolve(__dirname, 'src/mcp/server.ts'),
       },
       formats: ['es', 'cjs']
     },

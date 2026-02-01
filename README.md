@@ -499,13 +499,18 @@ const scopedBackend: ScopedBackend<LocalFilesystemBackend> = fs.scope('project')
 
 ## Development
 
+This is a multi-language monorepo (TypeScript + Python). Use Makefile for all commands:
+
 ```bash
-git clone https://github.com/agent-backend/agent-backend.git
-cd agent-backend
-npm install
-npm test
-npm run build
+make help           # Show all available commands
+make install        # Install dependencies
+make build          # Build all packages
+make test           # Run all tests
+make typecheck      # Type check everything
+make ci             # Full CI pipeline
 ```
+
+Language-specific: `make build-typescript`, `make test-python`, etc.
 
 ---
 

@@ -4,14 +4,7 @@
   "private": true,
   "description": "Agent Backend - client library and server infrastructure",
   "scripts": {
-    "build": "pnpm -r build",
-    "test": "pnpm -r test",
-    "test:unit": "pnpm -r test:unit",
-    "test:integration": "cd remote && pnpm run test:integration",
-    "test:all": "pnpm test:unit && pnpm test:integration",
-    "lint": "pnpm -r lint",
-    "typecheck": "pnpm -r typecheck",
-    "dev": "pnpm -r --parallel dev"
+    "postinstall": "echo 'Dependencies installed. Use `make help` to see available commands.'"
   },
   "engines": {
     "node": ">=18.0.0",
