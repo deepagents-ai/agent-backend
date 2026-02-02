@@ -3,9 +3,9 @@
 // ============================================================================
 
 export { LocalFilesystemBackend } from './LocalFilesystemBackend.js'
+export { MemoryBackend } from './MemoryBackend.js'
 export { RemoteFilesystemBackend } from './RemoteFilesystemBackend.js'
 export { ScopedFilesystemBackend } from './ScopedFilesystemBackend.js'
-export { MemoryBackend } from './MemoryBackend.js'
 export { ScopedMemoryBackend } from './ScopedMemoryBackend.js'
 
 // ============================================================================
@@ -14,11 +14,10 @@ export { ScopedMemoryBackend } from './ScopedMemoryBackend.js'
 
 export { BackendType } from './types.js'
 export type {
-  Backend,
-  FileBasedBackend,
-  ScopedBackend,
-  ScopedFileBasedBackend,
-  FileSystemBackend // Legacy
+    Backend,
+    FileBasedBackend, // Legacy: FileBasedBackend
+    ScopedBackend,
+    ScopedFileBasedBackend
 } from './types.js'
 
 // ============================================================================
@@ -26,22 +25,15 @@ export type {
 // ============================================================================
 
 export type {
-  ScopeConfig,
-  ExecOptions,
-  ReadOptions,
-  BaseFileBackendConfig,
-  LocalFilesystemBackendConfig,
-  RemoteFilesystemBackendConfig,
-  MemoryBackendConfig,
-  BackendConfig, // Legacy
-  LocalBackendConfig, // Legacy
-  RemoteBackendConfig // Legacy
+    BackendConfig, BaseFileBackendConfig, ExecOptions, // Legacy
+    LocalBackendConfig, LocalFilesystemBackendConfig, MemoryBackendConfig, ReadOptions, // Legacy
+    RemoteBackendConfig // Legacy
+    , RemoteFilesystemBackendConfig, ScopeConfig
 } from './config.js'
 
 export {
-  validateLocalFilesystemBackendConfig,
-  validateRemoteFilesystemBackendConfig,
-  validateMemoryBackendConfig,
-  BackendConfigSchema, // Legacy
-  validateLocalBackendConfig // Legacy
+    BackendConfigSchema, // Legacy
+    validateLocalBackendConfig // Legacy
+    , validateLocalFilesystemBackendConfig, validateMemoryBackendConfig, validateRemoteFilesystemBackendConfig
 } from './config.js'
+

@@ -198,7 +198,7 @@ export class MemoryBackend implements FileBasedBackend {
 
   /**
    * Get MCP client for memory backend.
-   * Spawns agentbe-server with this backend's configuration.
+   * Spawns agent-backend CLI with this backend's configuration.
    * Note: Memory backend does NOT support exec tool.
    *
    * @param scopePath - Optional scope path to use as rootDir
@@ -214,9 +214,9 @@ export class MemoryBackend implements FileBasedBackend {
       '--rootDir', scopePath || this.rootDir,
     ]
 
-    // Spawn agentbe-server
+    // Spawn agent-backend CLI
     const transport = new StdioClientTransport({
-      command: 'agentbe-server',
+      command: 'agent-backend',
       args,
     })
 

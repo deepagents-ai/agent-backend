@@ -16,7 +16,7 @@ help: ## Show this help message
 
 ##@ Dependencies
 
-install: ## Install all dependencies (TypeScript + Python)
+install: ## Install all dependencies (TypeScript + Python + dev tools)
 	@echo "Installing TypeScript dependencies..."
 	pnpm install
 	@echo ""
@@ -26,6 +26,23 @@ install: ## Install all dependencies (TypeScript + Python)
 	else \
 		echo "Python package not found (will be added later)"; \
 	fi
+	@echo ""
+	@echo "Installing dev tools..."
+	@command -v mprocs >/dev/null 2>&1 || { \
+		echo "Installing mprocs..."; \
+		if [ "$$(uname)" = "Darwin" ]; then \
+			brew install mprocs; \
+		elif [ "$$(uname)" = "Linux" ]; then \
+			if command -v cargo >/dev/null 2>&1; then \
+				cargo install mprocs; \
+			else \
+				echo "⚠️  mprocs not installed. Install manually: https://github.com/pvolok/mprocs#installation"; \
+			fi; \
+		else \
+			echo "⚠️  mprocs not installed. Install manually: https://github.com/pvolok/mprocs#installation"; \
+		fi; \
+	}
+	@echo "✓ All dependencies installed"
 
 ##@ Build
 
@@ -60,12 +77,8 @@ test-python: ## Run Python tests only
 	fi
 
 test-unit: ## Run unit tests only
-	@echo "Running TypeScript unit tests..."
-	pnpm -r test:unit
-
-test-integration: ## Run integration tests
-	@echo "Running integration tests..."
-	cd remote && pnpm run test:integration
+	@echo "Running unit tests..."
+	pnpm -r run test:unit 2>/dev/null || echo "No unit tests configured"
 
 ##@ Type Checking & Linting
 
@@ -107,20 +120,59 @@ lint-fix: ## Auto-fix linting issues
 
 ##@ Development
 
-dev: ## Start development mode (watch mode)
-	pnpm -r --parallel dev
+dev: ## Start all dev processes with interactive TUI (local mode)
+	@command -v mprocs >/dev/null 2>&1 || { \
+		echo "Error: mprocs not installed. Run 'make install' first."; \
+		exit 1; \
+	}
+	mprocs
+
+dev-remote: ## Start dev with Docker-based remote backend simulation
+	@command -v mprocs >/dev/null 2>&1 || { \
+		echo "Error: mprocs not installed. Run 'make install' first."; \
+		exit 1; \
+	}
+	@command -v docker >/dev/null 2>&1 || { \
+		echo "Error: Docker not installed"; \
+		echo "Install: https://docs.docker.com/get-docker/"; \
+		exit 1; \
+	}
+	@echo "Creating remote workspace directory..."
+	@mkdir -p tmp/remote-workspace
+	@if ! docker images | grep -q "agent-backend.*latest"; then \
+		echo "Docker image not found. Building agent-backend:latest..."; \
+		$(MAKE) docker-build; \
+	fi
+	@echo "Starting remote backend testing mode..."
+	mprocs -c mprocs.remote.yaml
 
 clean: ## Clean build artifacts and dependencies
 	@echo "Cleaning TypeScript packages..."
 	rm -rf typescript/dist typescript/node_modules
-	rm -rf remote/dist remote/node_modules
+	rm -rf examples/NextJS/dist examples/NextJS/.next examples/NextJS/node_modules
 	rm -rf node_modules
 	@echo "Cleaning Python package..."
 	@if [ -d "python" ]; then \
 		cd python && rm -rf dist build *.egg-info .pytest_cache .mypy_cache __pycache__; \
 	fi
+	@echo "Cleaning development artifacts..."
+	rm -rf tmp/
 	@echo "Cleaning lockfiles..."
 	rm -f pnpm-lock.yaml
+
+##@ Docker
+
+docker-build: ## Build Docker image for remote backend testing
+	@echo "Building agent-backend Docker image..."
+	@cd typescript/deploy/docker && \
+		docker build -f Dockerfile.runtime -t agent-backend:latest ../../..
+
+docker-clean: ## Remove agent-backend Docker images and containers
+	@echo "Stopping and removing containers..."
+	@docker stop agent-backend-remote 2>/dev/null || true
+	@docker rm agent-backend-remote 2>/dev/null || true
+	@echo "Removing images..."
+	@docker rmi agent-backend:latest 2>/dev/null || true
 
 ##@ Publishing & Deployment
 

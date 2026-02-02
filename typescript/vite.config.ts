@@ -17,6 +17,7 @@ export default defineConfig({
       entry: {
         index: path.resolve(__dirname, 'src/index.ts'),
         'mcp/index': path.resolve(__dirname, 'src/mcp/index.ts'),
+        'server/index': path.resolve(__dirname, 'src/server/index.ts'),
       },
       formats: ['es', 'cjs']
     },

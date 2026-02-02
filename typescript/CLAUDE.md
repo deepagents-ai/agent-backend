@@ -26,7 +26,7 @@ pnpm test            # Run tests in watch mode
 - **Package name**: `agent-backend` (npm)
 - **Module name**: `agent-backend`
 - **Version**: 0.6.x
-- **Monorepo**: Part of agent-backend monorepo with `agentbe-server`
+- **CLI Command**: `agent-backend` (includes MCP server)
 
 ## Project Structure
 

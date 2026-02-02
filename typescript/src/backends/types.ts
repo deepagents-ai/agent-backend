@@ -1,6 +1,6 @@
-import type { Stats } from 'fs'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
-import type { ScopeConfig, ExecOptions, ReadOptions } from './config.js'
+import type { Stats } from 'fs'
+import type { ExecOptions, ReadOptions, ScopeConfig } from './config.js'
 
 /**
  * Backend type identifier
@@ -216,9 +216,3 @@ export interface ScopedBackend<T extends FileBasedBackend> {
  * This type alias is provided for clarity
  */
 export type ScopedFileBasedBackend<T extends FileBasedBackend> = ScopedBackend<T>
-
-// ============================================================================
-// Legacy Exports (for backward compatibility during migration)
-// ============================================================================
-
-export type FileSystemBackend = Backend

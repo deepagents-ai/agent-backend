@@ -5,8 +5,13 @@
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "agent-backend": "./bin/agent-backend.js"
+  },
   "files": [
     "dist",
+    "bin",
+    "deploy",
     "native",
     "scripts",
     "src"
@@ -85,6 +90,10 @@
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "import": "./dist/mcp/index.js"
+    },
+    "./server": {
+      "types": "./dist/server/index.d.ts",
+      "import": "./dist/server/index.js"
     },
     "./package.json": "./package.json"
   }

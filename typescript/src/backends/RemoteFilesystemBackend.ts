@@ -639,40 +639,44 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
 
   /**
    * Get MCP client for remote backend.
-   * Spawns agentbe-server with this backend's configuration.
+   * Connects to HTTP MCP server running on the remote host.
+   *
+   * Remote backends MUST use HTTP to connect to an MCP server running on the remote host.
+   * The principle: "The MCP server has to be in the same system as the files it manages."
    *
    * @param scopePath - Optional scope path to use as rootDir
-   * @returns MCP Client connected to a server for this backend
+   * @returns MCP Client connected to HTTP MCP server on remote host
+   * @throws {BackendError} If mcpServerUrl is not configured
    */
-  async getMCPClient(scopePath?: string): Promise<MCPClient> {
+  async getMCPClient(_scopePath?: string): Promise<MCPClient> {
+    // Remote backends MUST use HTTP to connect to MCP server on remote host
+    if (!this.config.mcpServerUrl) {
+      throw new BackendError(
+        'RemoteFilesystemBackend requires mcpServerUrl to be configured. ' +
+        'The MCP server must run on the remote host and be accessible via HTTP. ' +
+        'Start the MCP server on the remote host with: ' +
+        `agent-backend --backend local --rootDir ${this.rootDir} --http-port 3001`,
+        ERROR_CODES.INVALID_CONFIGURATION,
+        'mcpServerUrl'
+      )
+    }
+
     const { Client: MCPClientClass } = await import('@modelcontextprotocol/sdk/client/index.js')
-    const { StdioClientTransport } = await import('@modelcontextprotocol/sdk/client/stdio.js')
+    const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js')
 
-    // Build command args
-    const args = [
-      '--backend', 'remote',
-      '--rootDir', scopePath || this.rootDir,
-      '--host', this.config.host,
-      '--username', this.config.sshAuth.credentials.username,
-    ]
-
-    // Add authentication
-    if (this.config.sshAuth.type === 'password' && this.config.sshAuth.credentials.password) {
-      args.push('--password', this.config.sshAuth.credentials.password)
-    } else if (this.config.sshAuth.type === 'key' && this.config.sshAuth.credentials.privateKey) {
-      args.push('--privateKey', this.config.sshAuth.credentials.privateKey)
-    }
-
-    // Add optional port
-    if (this.config.sshPort && this.config.sshPort !== 22) {
-      args.push('--port', this.config.sshPort.toString())
-    }
-
-    // Spawn agentbe-server
-    const transport = new StdioClientTransport({
-      command: 'agentbe-server',
-      args,
-    })
+    // Create HTTP transport to remote MCP server
+    const transport = new StreamableHTTPClientTransport(
+      new URL('/mcp', this.config.mcpServerUrl),
+      {
+        requestInit: {
+          headers: {
+            ...(this.config.mcpAuth?.token && {
+              'Authorization': `Bearer ${this.config.mcpAuth.token}`,
+            }),
+          },
+        },
+      }
+    )
 
     const client = new MCPClientClass(
       {

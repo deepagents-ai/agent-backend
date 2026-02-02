@@ -3,7 +3,6 @@ export { BackendType } from './backends/index.js'
 export type {
   Backend,
   FileBasedBackend,
-  FileSystemBackend,
   ScopedBackend,
   ScopedFileBasedBackend
 } from './backends/index.js'
@@ -11,20 +10,10 @@ export type {
 export {
   BackendConfigSchema,
   validateLocalBackendConfig,
-  validateLocalFilesystemBackendConfig,
-  validateRemoteFilesystemBackendConfig,
-  validateMemoryBackendConfig
+  validateLocalFilesystemBackendConfig, validateMemoryBackendConfig, validateRemoteFilesystemBackendConfig
 } from './backends/index.js'
 export type {
-  BackendConfig,
-  LocalBackendConfig,
-  RemoteBackendConfig,
-  LocalFilesystemBackendConfig,
-  RemoteFilesystemBackendConfig,
-  MemoryBackendConfig,
-  ScopeConfig,
-  ExecOptions,
-  ReadOptions
+  BackendConfig, ExecOptions, LocalBackendConfig, LocalFilesystemBackendConfig, MemoryBackendConfig, ReadOptions, RemoteBackendConfig, RemoteFilesystemBackendConfig, ScopeConfig
 } from './backends/index.js'
 
 /**

@@ -392,7 +392,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       throw new BackendError(
         `Failed to read file: ${relativePath}`,
         ERROR_CODES.READ_FAILED,
-        'read'
+        error instanceof Error ? error.message : String(error)
       )
     }
   }
@@ -411,7 +411,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       throw new BackendError(
         `Failed to write file: ${relativePath}`,
         ERROR_CODES.WRITE_FAILED,
-        'write'
+        error instanceof Error ? error.message : String(error)
       )
     }
   }
@@ -426,10 +426,12 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       const entries = await readdir(fullPath)
       return entries
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      getLogger().error(`[LocalFilesystemBackend] readdir failed for ${relativePath} (${fullPath}):`, errorMessage)
       throw new BackendError(
-        `Failed to read directory: ${relativePath}`,
+        `Failed to read directory: ${relativePath} - ${errorMessage}`,
         ERROR_CODES.LS_FAILED,
-        'readdir'
+        error instanceof Error ? error.message : String(error)
       )
     }
   }
@@ -446,7 +448,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       throw new BackendError(
         `Failed to create directory: ${relativePath}`,
         ERROR_CODES.WRITE_FAILED,
-        'mkdir'
+        error instanceof Error ? error.message : String(error)
       )
     }
   }
@@ -481,10 +483,12 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     try {
       return await stat(fullPath)
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
+      getLogger().error(`[LocalFilesystemBackend] stat failed for ${relativePath} (${fullPath}):`, errorMessage)
       throw new BackendError(
-        `Failed to stat path: ${relativePath}`,
+        `Failed to stat path: ${relativePath} - ${errorMessage}`,
         ERROR_CODES.READ_FAILED,
-        'stat'
+        error instanceof Error ? error.message : String(error)
       )
     }
   }
@@ -518,7 +522,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
 
   /**
    * Get MCP client for this backend.
-   * Spawns agentbe-server with this backend's configuration.
+   * Spawns agent-backend CLI with this backend's configuration.
    *
    * @param scopePath - Optional scope path to use as rootDir
    * @returns MCP Client connected to a server for this backend
@@ -541,9 +545,9 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       args.push('--shell', this.shell)
     }
 
-    // Spawn agentbe-server
+    // Spawn agent-backend CLI
     const transport = new StdioClientTransport({
-      command: 'agentbe-server',
+      command: 'agent-backend',
       args,
     })
 

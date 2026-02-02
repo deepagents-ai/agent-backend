@@ -291,14 +291,14 @@ Start backend-specific MCP servers:
 
 ```bash
 # Local filesystem server
-agentbe-server --backend local --rootDir /tmp/workspace --isolation bwrap
+agent-backend --backend local --rootDir /tmp/workspace --isolation bwrap
 
 # Remote filesystem server (connects to SSH host)
-agentbe-server --backend remote --rootDir /var/workspace \
+agent-backend --backend remote --rootDir /var/workspace \
   --host server.example.com --username agent --password secret
 
 # Memory backend server (no exec tool)
-agentbe-server --backend memory --rootDir /memory
+agent-backend --backend memory --rootDir /memory
 ```
 
 ### Docker Remote Backend
@@ -307,7 +307,7 @@ Deploy a complete remote backend environment with Docker:
 
 ```bash
 # Start Docker-based remote backend service
-agentbe-server start-remote
+agent-backend start-remote
 
 # Now you can connect from your code:
 const fs = new RemoteFilesystemBackend({
@@ -333,7 +333,7 @@ Deploy to Azure or GCP using the deployment tool:
 
 ```bash
 # Access the deployment UI
-cd agentbe-server/deploy/deploy-tool
+cd agent-backend/deploy/deploy-tool
 npm install
 node server.js
 # Open http://localhost:3456
@@ -343,7 +343,7 @@ Or use cloud-init scripts directly:
 - `deploy/scripts/azure-vm-startup.sh`
 - `deploy/scripts/gcp-vm-startup.sh`
 
-**Learn more:** See the [agentbe-server README](./agentbe-server/README.md) for full deployment documentation.
+**Learn more:** See the [agent-backend README](./agent-backend/README.md) for full deployment documentation.
 
 ---
 
@@ -503,14 +503,139 @@ This is a multi-language monorepo (TypeScript + Python). Use Makefile for all co
 
 ```bash
 make help           # Show all available commands
-make install        # Install dependencies
+make install        # Install dependencies (including mprocs)
 make build          # Build all packages
 make test           # Run all tests
 make typecheck      # Type check everything
 make ci             # Full CI pipeline
 ```
 
+### Development Mode
+
+Start all dev processes with unified TUI:
+
+```bash
+make dev            # Local development (TypeScript + NextJS)
+make dev-remote     # Test with Docker-based remote backend
+```
+
+Uses [mprocs](https://github.com/pvolok/mprocs) for process management with interactive TUI, auto-restart on changes, and Docker support.
+
+**mprocs keyboard shortcuts:**
+- `Tab`/`Shift+Tab` - Cycle through processes
+- `Space` - Start/stop process
+- `r` - Restart process
+- `f` - Focus process (full screen)
+- `/` - Search logs
+- `q` - Quit all
+
 Language-specific: `make build-typescript`, `make test-python`, etc.
+
+---
+
+### Development Workflows
+
+#### Working on TypeScript Package
+
+```bash
+make dev
+
+# In mprocs:
+# 1. Watch typescript-watch logs to see compilation
+# 2. Make changes to typescript/src/**
+# 3. See rebuild happen automatically
+# 4. NextJS picks up changes on next request
+```
+
+#### Working on NextJS Example
+
+```bash
+make dev
+
+# In mprocs:
+# 1. Focus on nextjs-dev logs (press f)
+# 2. Make changes to examples/NextJS/app/**
+# 3. See hot reload in browser
+```
+
+#### Testing Remote Backend Locally
+
+```bash
+make dev-remote     # Auto-builds Docker image if needed
+
+# This simulates:
+# - Remote server with MCP server on port 3001
+# - SSH access on port 2222 (user: root, password: agents)
+# - NextJS connecting to "remote" backend
+```
+
+#### Adding Python Examples
+
+Edit `mprocs.yaml`:
+```yaml
+procs:
+  python-app:
+    cmd: ["python", "-m", "uvicorn", "main:app", "--reload"]
+    cwd: "examples/python-app"
+```
+
+Then run `make dev` - Python app starts automatically.
+
+---
+
+### Docker Commands
+
+```bash
+make docker-build   # Build agent-backend Docker image
+make docker-clean   # Remove containers and images
+```
+
+Manual testing:
+```bash
+docker run --rm -it \
+  -p 3001:3001 -p 2222:22 \
+  -v "$(pwd)/tmp/remote-workspace:/workspace" \
+  agent-backend:latest \
+  agent-backend --backend local --rootDir /workspace --http-port 3001
+
+# Test: ssh -p 2222 root@localhost (password: agents)
+# Test: curl http://localhost:3001/health
+```
+
+---
+
+### Troubleshooting
+
+**mprocs not found**
+```bash
+make install        # Includes mprocs (macOS: Homebrew, Linux: cargo)
+```
+
+**Port conflicts**
+```bash
+lsof -ti:3000 | xargs kill -9    # NextJS
+lsof -ti:3001 | xargs kill -9    # MCP server
+```
+
+**TypeScript changes not appearing**
+1. Check typescript-watch logs in mprocs
+2. Verify compilation succeeded
+3. Restart nextjs-dev (press `r` in mprocs)
+
+**Remote mode not working**
+1. Verify Docker image: `docker images | grep agent-backend`
+2. Check container: `docker ps | grep agent-backend-remote`
+3. Test MCP: `curl http://localhost:3001/health`
+4. View logs: `docker logs agent-backend-remote`
+
+---
+
+### Configuration Files
+
+**mprocs.yaml** - Local development (TypeScript + NextJS)
+**mprocs.remote.yaml** - Remote testing (+ Docker container)
+
+Customize by editing these YAML files to add processes, change commands, or set dependencies.
 
 ---
 

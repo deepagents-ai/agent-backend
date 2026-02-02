@@ -1,0 +1,30 @@
+# mprocs configuration for local development
+# Usage: mprocs (or make dev)
+
+procs:
+  typescript-watch:
+    cmd: ["pnpm", "run", "dev"]
+    cwd: "typescript"
+    stop: "SIGTERM"
+    env:
+      FORCE_COLOR: "1"
+
+  nextjs-dev:
+    cmd: ["pnpm", "run", "dev"]
+    cwd: "examples/NextJS"
+    stop: "SIGTERM"
+    env:
+      FORCE_COLOR: "1"
+      NEXT_PUBLIC_BACKEND_TYPE: "local"
+    # Wait a bit for TypeScript to compile before starting Next.js
+    depends_on:
+      typescript-watch:
+        condition: "running"
+
+  # Uncomment to run Python example (when available)
+  # python-app:
+  #   cmd: ["python", "-m", "uvicorn", "main:app", "--reload", "--port", "8000"]
+  #   cwd: "examples/python-app"
+  #   stop: "SIGTERM"
+  #   env:
+  #     FORCE_COLOR: "1"

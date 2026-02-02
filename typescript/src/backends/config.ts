@@ -85,6 +85,9 @@ export interface RemoteFilesystemBackendConfig extends BaseFileBackendConfig {
   /** SSH port */
   sshPort?: number
 
+  /** MCP server URL for getMCPClient() (e.g., 'http://remote-host:3001') */
+  mcpServerUrl?: string
+
   /** MCP authentication (for remote MCP server) */
   mcpAuth?: {
     token: string
@@ -147,6 +150,7 @@ const RemoteFilesystemBackendConfigSchema = z.object({
   onDangerousOperation: z.custom<(operation: string) => void>().optional(),
   maxOutputLength: z.number().positive().optional(),
   sshPort: z.number().positive().optional(),
+  mcpServerUrl: z.string().url().optional(),
   mcpAuth: z.object({
     token: z.string(),
   }).optional(),

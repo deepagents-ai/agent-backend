@@ -10,15 +10,20 @@ Multi-language monorepo (TypeScript + Python):
 typescript/src/                # Core library (published as agent-backend)
 ├── backends/                  # Backend implementations
 ├── mcp/                       # MCP client integration
+├── server/                    # MCP server implementation
+│   ├── AgentBackendMCPServer.ts  # Unified adaptive server
+│   ├── tools.ts               # MCP tool implementations
+│   └── index.ts               # Server exports
 ├── logging/                   # Operations logging
 ├── BackendPoolManager.ts      # Connection pooling
 ├── safety.ts                  # Command safety validation
 └── index.ts                   # Public exports
 
-remote/src/mcp/servers/        # MCP server implementations (agentbe-server)
-├── LocalFilesystemMCPServer.ts
-├── MemoryMCPServer.ts
-└── RemoteFilesystemMCPServer.ts
+typescript/bin/                # CLI command
+└── agent-backend.js           # MCP server CLI
+
+typescript/deploy/             # Docker deployment
+└── docker/                    # Remote backend service
 
 python/                        # Python bindings (future)
 
@@ -70,8 +75,8 @@ pnpm test -t "pattern"       # Run matching tests
 ```
 
 **Test Structure:**
-- `agentbe-typescript/tests/unit/` - Unit tests with mocked I/O
-- `remote/tests/unit/` - MCP server tests
+- `typescript/tests/unit/` - Unit tests with mocked I/O
+- `typescript/tests/unit/server/` - MCP server tests
 - Global setup in `tests/unit/setup.ts` mocks child_process and fs/promises
 
 **Mock Pattern:**
@@ -133,22 +138,24 @@ make ci             # Full CI pipeline
 
 Language-specific: `make build-typescript`, `make test-python`
 
-**Workspace**: pnpm manages TypeScript packages (`typescript`, `remote`). Python managed separately.
+**Workspace**: pnpm manages TypeScript package (`typescript`). Python managed separately.
 
-**Package Names**: `agent-backend` (TypeScript core), `agentbe-server` (MCP servers)
+**Package Names**: `agent-backend` (unified package with library + CLI + server)
 
 **Key Notes**:
 - Scoped backends read `connected` from parent dynamically (getter, not property)
 - BackendPoolManager supports per-request config overrides
-- MCP servers wrap backends with tool tracking for compatibility
+- AgentBackendMCPServer uses duck typing for exec capability detection
+- Single adaptive server replaces separate LocalFilesystem/Remote/Memory server classes
 
 ## Key Files to Understand
 
-1. **backends/LocalFilesystemBackend.ts** - Core implementation, ~500 LOC
-2. **backends/ScopedFilesystemBackend.ts** - Scoping logic, path translation
-3. **BackendPoolManager.ts** - Connection pooling for stateless servers
-4. **safety.ts** - Command safety validation patterns
-5. **mcp/servers/*.ts** - MCP server wrappers with tool tracking
+1. **typescript/src/backends/LocalFilesystemBackend.ts** - Core implementation, ~500 LOC
+2. **typescript/src/backends/ScopedFilesystemBackend.ts** - Scoping logic, path translation
+3. **typescript/src/BackendPoolManager.ts** - Connection pooling for stateless servers
+4. **typescript/src/safety.ts** - Command safety validation patterns
+5. **typescript/src/server/AgentBackendMCPServer.ts** - Adaptive MCP server with duck typing
+6. **typescript/bin/agent-backend.js** - CLI for starting MCP servers
 
 ## Error Handling
 
