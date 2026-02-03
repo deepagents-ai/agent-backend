@@ -21,6 +21,16 @@ pnpm test --run      # Run tests once
 pnpm test            # Run tests in watch mode
 ```
 
+### Running agentbed
+
+```bash
+# Start agentbed for local development (stdio mode)
+pnpm run build && node bin/agent-backend.js --rootDir /tmp/workspace
+
+# Start agentbed for remote deployment (HTTP mode)
+agent-backend --rootDir /workspace --mcp-port 3001 --mcp-auth-token <token>
+```
+
 ### Package Info
 
 - **Package name**: `agent-backend` (npm)
@@ -67,13 +77,37 @@ tests/unit/                     # Unit tests (Vitest)
 └── pooling/                    # Pool manager tests
 ```
 
+## Terminology
+
+**agentbed (Agent Backend Daemon)**:
+- The `agent-backend` CLI process running as a daemon
+- Serves a local filesystem remotely via MCP over HTTP
+- Always serves its LOCAL filesystem (it's "remote" from client's perspective)
+- Example: `agent-backend --rootDir /workspace --mcp-port 3001`
+
+**Backend (Client-Side Interface)**:
+- `LocalFilesystemBackend` - Direct local filesystem access
+  - Client-side only, no daemon needed
+  - For local development
+- `RemoteFilesystemBackend` - Connects to remote agentbed
+  - Uses SSH for direct ops + HTTP for MCP tools
+  - For production deployments
+- `MemoryBackend` - In-memory key/value storage
+  - Client-side only, no daemon needed
+  - For testing
+
+**Key Points**:
+- agentbed always serves LOCAL filesystem (no backend type flag)
+- MemoryBackend never needs a daemon (client-side only)
+- RemoteFilesystemBackend connects TO agentbed (client → daemon)
+
 ## Architecture
 
-### Backend Classes
+### Backend Classes (CLIENT-SIDE ONLY)
 
 **File-based backends:**
 - `LocalFilesystemBackend` - Local filesystem + command execution
-- `RemoteFilesystemBackend` - Remote operations via SSH
+- `RemoteFilesystemBackend` - Remote operations via SSH + MCP
 - Both support: `read()`, `write()`, `readdir()`, `mkdir()`, `exists()`, `stat()`, `exec()`
 
 **Memory backend:**

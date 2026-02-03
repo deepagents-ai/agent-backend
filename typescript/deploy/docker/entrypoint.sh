@@ -71,7 +71,7 @@ if [ -f /keys/id_rsa.pub ]; then
 fi
 
 # Set workspace root from environment
-WORKSPACE_ROOT="${WORKSPACE_ROOT:-/agent-backend}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
 echo "📁 Setting workspace root to: $WORKSPACE_ROOT"
 mkdir -p "$WORKSPACE_ROOT"
 chmod 755 "$WORKSPACE_ROOT"
@@ -98,47 +98,37 @@ if [ "$ENABLE_LOGGING" = "true" ]; then
   sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
 fi
 
-# Start MCP server if auth token is provided
-if [ -n "$MCP_AUTH_TOKEN" ]; then
-  echo "🔌 Starting MCP server on port $MCP_PORT..."
+# Start agentbed (agent backend daemon)
+echo "🔌 Starting agentbed on port $MCP_PORT..."
 
-  # Start MCP server in background
-  if [ "$MCP_USER" != "root" ]; then
-    su - "$MCP_USER" -c "npx agent-backend mcp-server \
-      --workspaceRoot $WORKSPACE_ROOT \
-      --http \
-      --port $MCP_PORT \
-      --authToken $MCP_AUTH_TOKEN" &
-  else
-    npx agent-backend mcp-server \
-      --workspaceRoot "$WORKSPACE_ROOT" \
-      --http \
-      --port "$MCP_PORT" \
-      --authToken "$MCP_AUTH_TOKEN" &
-  fi
-
-  MCP_PID=$!
-  echo "   MCP server started (PID: $MCP_PID)"
+# Start agentbed in background
+if [ "$MCP_USER" != "root" ]; then
+  su - "$MCP_USER" -c "agent-backend \
+    --rootDir \"$WORKSPACE_ROOT\" \
+    --mcp-port $MCP_PORT \
+    --mcp-auth-token \"$MCP_AUTH_TOKEN\"" &
 else
-  echo "⚠️  MCP_AUTH_TOKEN not set, MCP server will not start"
+  agent-backend \
+    --rootDir "$WORKSPACE_ROOT" \
+    --mcp-port "$MCP_PORT" \
+    --mcp-auth-token "$MCP_AUTH_TOKEN" &
 fi
+
+MCP_PID=$!
+echo "   agentbed started (PID: $MCP_PID)"
 
 echo ""
 echo "✅ AgentBackend Remote Backend is ready!"
 echo "📡 Connection details:"
 echo "   SSH Port: 22"
-if [ -n "$MCP_AUTH_TOKEN" ]; then
-  echo "   MCP Port: $MCP_PORT"
-fi
+echo "   MCP Port: $MCP_PORT"
 echo "   Default user: root"
 echo "   Default password: agents"
 echo "   Workspace: $WORKSPACE_ROOT"
 echo ""
 echo "🔧 Test connection:"
 echo "   ssh root@localhost -p <mapped-port>"
-if [ -n "$MCP_AUTH_TOKEN" ]; then
-  echo "   curl http://localhost:$MCP_PORT/health"
-fi
+echo "   curl http://localhost:$MCP_PORT/health"
 echo ""
 echo "🚀 Starting SSH daemon..."
 echo ""

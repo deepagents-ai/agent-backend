@@ -1,5 +1,14 @@
 /**
  * In-memory key/value backend implementation
+ *
+ * CLIENT-SIDE ONLY: This backend never requires agentbed (the daemon).
+ * All data is stored in the client's memory.
+ *
+ * Use cases:
+ * - Testing
+ * - Temporary data storage
+ * - No exec support (throws NotImplementedError)
+ *
  * Stores data in a Map, directories are implicit from key paths
  */
 

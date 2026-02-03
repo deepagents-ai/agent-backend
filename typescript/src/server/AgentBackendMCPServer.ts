@@ -1,63 +1,56 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
-import type { Backend } from '../types.js'
-import { registerExecTool, registerFilesystemTools } from './tools.js'
+import { spawn } from 'child_process'
+import { mkdir as fsMkdir, readdir, readFile, rename as fsRename, writeFile } from 'fs/promises'
+import * as path from 'path'
+import { z } from 'zod'
+import { isCommandSafe } from '../safety.js'
+import { BackendError, DangerousOperationError } from '../types.js'
 
 /**
- * Adaptive MCP Server that works with any Backend type.
+ * Configuration for AgentBackendMCPServer
+ */
+export interface AgentBackendMCPServerConfig {
+  /** Root directory to serve */
+  rootDir: string
+
+  /** Isolation mode for command execution */
+  isolation?: 'auto' | 'bwrap' | 'software' | 'none'
+
+  /** Shell to use for command execution */
+  shell?: 'bash' | 'sh' | 'auto'
+
+  /** Prevent dangerous operations */
+  preventDangerous?: boolean
+}
+
+/**
+ * AgentBackend MCP Server
  *
- * Automatically detects backend capabilities and registers appropriate tools:
- * - Always registers filesystem tools (read, write, directory operations, etc.)
- * - Conditionally registers exec tool based on duck typing (backend.exec existence)
+ * A simple MCP server that serves filesystem tools directly.
+ * NO Backend abstraction - just implements the tools using Node.js fs APIs.
  *
- * Replaces LocalFilesystemMCPServer, RemoteFilesystemMCPServer, and MemoryMCPServer.
- *
- * @example
- * ```typescript
- * // Works with LocalFilesystemBackend
- * const backend = new LocalFilesystemBackend({ workspaceRoot: '/path' })
- * await backend.connect()
- * const server = new AgentBackendMCPServer(backend)
- * // → filesystem tools + exec tool registered
- *
- * // Works with RemoteFilesystemBackend
- * const backend = new RemoteFilesystemBackend({ host: 'example.com', ... })
- * await backend.connect()
- * const server = new AgentBackendMCPServer(backend)
- * // → filesystem tools + exec tool registered
- *
- * // Works with MemoryBackend
- * const backend = new MemoryBackend()
- * await backend.connect()
- * const server = new AgentBackendMCPServer(backend)
- * // → filesystem tools only (no exec)
- *
- * // Works with ScopedBackend (any wrapper)
- * const scoped = backend.scope('subdir')
- * const server = new AgentBackendMCPServer(scoped)
- * // → automatically adapts to wrapped backend capabilities
- * ```
+ * This is what runs in the daemon (agentbed).
  */
 export class AgentBackendMCPServer {
   public server: McpServer & { name: string; version: string; getTools(): Record<string, any> }
-  private backend: Backend
   private tools: Map<string, any> = new Map()
+  private rootDir: string
+  private shell: string
+  private preventDangerous: boolean
 
-  constructor(backend: Backend) {
-    this.backend = backend
-
-    // Generate server name from backend type (e.g., 'local-filesystem', 'remote-filesystem', 'memory')
-    const serverName = this.getServerName(backend)
+  constructor(config: AgentBackendMCPServerConfig) {
+    this.rootDir = path.resolve(config.rootDir)
+    this.shell = config.shell ?? 'auto'
+    this.preventDangerous = config.preventDangerous ?? true
 
     const baseServer = new McpServer({
-      name: serverName,
+      name: 'agentbed',
       version: '1.0.0'
     })
 
     // Wrap the server to track tool registrations
-    // This enables getTools() method for compatibility with clients that need tool metadata
     const originalRegisterTool = baseServer.registerTool.bind(baseServer)
     baseServer.registerTool = ((name: string, config: any, handler: any) => {
-      // Ensure inputSchema has type field for JSON Schema compatibility
       const inputSchema = config.inputSchema
         ? { type: 'object', ...config.inputSchema }
         : undefined
@@ -71,56 +64,209 @@ export class AgentBackendMCPServer {
       return originalRegisterTool(name, config, handler)
     }) as any
 
-    // Add getTools method and preserve name/version
     this.server = Object.assign(baseServer, {
-      name: serverName,
+      name: 'agentbed',
       version: '1.0.0',
       getTools: () => Object.fromEntries(this.tools)
     }) as any
 
-    // Always register filesystem tools (read, write, directory operations, etc.)
-    registerFilesystemTools(this.server, async () => this.backend)
+    // Register all filesystem tools
+    this.registerTools()
+  }
 
-    // Conditionally register exec tool based on duck typing
-    // If the backend has an exec method, it supports command execution
-    if (typeof (backend as any).exec === 'function') {
-      registerExecTool(this.server, async () => this.backend)
+  private resolvePath(filePath: string): string {
+    // Make path absolute relative to rootDir
+    const resolved = path.isAbsolute(filePath)
+      ? path.resolve(this.rootDir, filePath.slice(1))
+      : path.resolve(this.rootDir, filePath)
+
+    // Ensure path doesn't escape rootDir
+    if (!resolved.startsWith(this.rootDir)) {
+      throw new BackendError(
+        `Path escapes root directory: ${filePath}`,
+        'PATH_ESCAPE'
+      )
     }
+
+    return resolved
   }
 
-  /**
-   * Generate server name from backend type.
-   * Converts backend.type (e.g., 'LocalFilesystem', 'RemoteFilesystem', 'Memory')
-   * to kebab-case server name (e.g., 'local-filesystem', 'remote-filesystem', 'memory').
-   */
-  private getServerName(backend: Backend): string {
-    // Get backend type (e.g., 'LocalFilesystem', 'RemoteFilesystem', 'Memory', 'ScopedFilesystem')
-    const backendType = backend.type
+  private registerTools() {
+    // read_file tool
+    this.server.registerTool('read_file', {
+      description: 'Read complete contents of a file from the filesystem',
+      inputSchema: {
+        path: z.string().describe('Path to file to read')
+      }
+    }, async ({ path: filePath }: any) => {
+      const resolved = this.resolvePath(filePath)
+      const content = await readFile(resolved, 'utf-8')
+      return {
+        content: [{
+          type: 'text',
+          text: content
+        }]
+      }
+    })
 
-    // Convert to kebab-case
-    // 'LocalFilesystem' → 'local-filesystem'
-    // 'RemoteFilesystem' → 'remote-filesystem'
-    // 'Memory' → 'memory'
-    // 'ScopedFilesystem' → 'scoped-filesystem'
-    const kebabCase = backendType
-      .replace(/([a-z])([A-Z])/g, '$1-$2')
-      .toLowerCase()
+    // write_file tool
+    this.server.registerTool('write_file', {
+      description: 'Write content to a file',
+      inputSchema: {
+        path: z.string().describe('Path to file to write'),
+        content: z.string().describe('Content to write')
+      }
+    }, async ({ path: filePath, content }: any) => {
+      const resolved = this.resolvePath(filePath)
 
-    return kebabCase
+      // Ensure parent directory exists
+      const dir = path.dirname(resolved)
+      await fsMkdir(dir, { recursive: true })
+
+      await writeFile(resolved, content, 'utf-8')
+      return {
+        content: [{
+          type: 'text',
+          text: `Successfully wrote to ${filePath}`
+        }]
+      }
+    })
+
+    // list_directory tool
+    this.server.registerTool('list_directory', {
+      description: 'List contents of a directory',
+      inputSchema: {
+        path: z.string().describe('Path to directory')
+      }
+    }, async ({ path: dirPath }: any) => {
+      const resolved = this.resolvePath(dirPath)
+      const entries = await readdir(resolved, { withFileTypes: true })
+
+      const listing = entries.map(entry => ({
+        name: entry.name,
+        type: entry.isDirectory() ? 'directory' : 'file'
+      }))
+
+      return {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(listing, null, 2)
+        }]
+      }
+    })
+
+    // create_directory tool
+    this.server.registerTool('create_directory', {
+      description: 'Create a new directory',
+      inputSchema: {
+        path: z.string().describe('Path to directory to create')
+      }
+    }, async ({ path: dirPath }: any) => {
+      const resolved = this.resolvePath(dirPath)
+      await fsMkdir(resolved, { recursive: true })
+      return {
+        content: [{
+          type: 'text',
+          text: `Successfully created directory ${dirPath}`
+        }]
+      }
+    })
+
+    // move_file tool
+    this.server.registerTool('move_file', {
+      description: 'Move or rename a file',
+      inputSchema: {
+        source: z.string().describe('Source path'),
+        destination: z.string().describe('Destination path')
+      }
+    }, async ({ source, destination }: any) => {
+      const resolvedSrc = this.resolvePath(source)
+      const resolvedDest = this.resolvePath(destination)
+
+      // Ensure destination directory exists
+      const destDir = path.dirname(resolvedDest)
+      await fsMkdir(destDir, { recursive: true })
+
+      await fsRename(resolvedSrc, resolvedDest)
+      return {
+        content: [{
+          type: 'text',
+          text: `Successfully moved ${source} to ${destination}`
+        }]
+      }
+    })
+
+    // exec tool
+    this.server.registerTool('exec', {
+      description: 'Execute a shell command',
+      inputSchema: {
+        command: z.string().describe('Command to execute'),
+        timeout: z.number().optional().describe('Timeout in milliseconds (default: 120000)')
+      }
+    }, async ({ command, timeout = 120000 }: any) => {
+      // Safety check
+      if (this.preventDangerous) {
+        const safetyResult = isCommandSafe(command)
+        if (!safetyResult.safe) {
+          throw new DangerousOperationError(
+            `Dangerous command blocked: ${safetyResult.reason}`
+          )
+        }
+      }
+
+      return new Promise((resolve, reject) => {
+        const proc = spawn(command, {
+          cwd: this.rootDir,
+          shell: this.shell === 'auto' ? true : this.shell,
+          timeout
+        })
+
+        let stdout = ''
+        let stderr = ''
+
+        proc.stdout?.on('data', (data) => {
+          stdout += data.toString()
+        })
+
+        proc.stderr?.on('data', (data) => {
+          stderr += data.toString()
+        })
+
+        proc.on('close', (code) => {
+          resolve({
+            content: [{
+              type: 'text',
+              text: JSON.stringify({
+                exitCode: code ?? 0,
+                stdout,
+                stderr
+              }, null, 2)
+            }]
+          })
+        })
+
+        proc.on('error', (error) => {
+          reject(new BackendError(
+            `Command execution failed: ${error.message}`,
+            'COMMAND_FAILED'
+          ))
+        })
+
+        // Handle timeout
+        const timeoutId = setTimeout(() => {
+          proc.kill()
+          reject(new BackendError(
+            `Command timed out after ${timeout}ms`,
+            'TIMEOUT'
+          ))
+        }, timeout)
+
+        proc.on('close', () => clearTimeout(timeoutId))
+      })
+    })
   }
 
-  /**
-   * Get the underlying MCP server instance.
-   * Use this to connect transports or access server methods.
-   */
   getServer(): McpServer {
     return this.server
-  }
-
-  /**
-   * Get the backend instance this server is wrapping.
-   */
-  getBackend(): Backend {
-    return this.backend
   }
 }

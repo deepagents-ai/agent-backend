@@ -16,6 +16,14 @@ import { BackendType } from './types.js'
 
 /**
  * Local filesystem backend implementation
+ *
+ * CLIENT-SIDE ONLY: This backend is used by clients for direct local filesystem access.
+ * agentbed (the daemon) does NOT use this class - it creates one internally but the daemon
+ * itself is just an MCP server with filesystem tools.
+ *
+ * The Backend abstractions (LocalFilesystemBackend, RemoteFilesystemBackend, MemoryBackend)
+ * are purely client-side concepts. The daemon is just an MCP server with filesystem tools.
+ *
  * Executes commands and file operations on the local machine using Node.js APIs
  */
 export class LocalFilesystemBackend implements FileBasedBackend {

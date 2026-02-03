@@ -69,7 +69,7 @@ export interface LocalFilesystemBackendConfig extends BaseFileBackendConfig {
  * Configuration for RemoteFilesystemBackend
  */
 export interface RemoteFilesystemBackendConfig extends BaseFileBackendConfig {
-  /** Remote host */
+  /** Default host for all services (required) */
   host: string
 
   /** SSH authentication */
@@ -82,19 +82,22 @@ export interface RemoteFilesystemBackendConfig extends BaseFileBackendConfig {
     }
   }
 
-  /** SSH port */
+  /** SSH port (defaults to 22) */
   sshPort?: number
 
-  /** MCP server URL for getMCPClient() (e.g., 'http://remote-host:3001') */
-  mcpServerUrl?: string
+  /** Override host for SSH (if different from main host) */
+  sshHostOverride?: string
+
+  /** MCP server port (defaults to 3001) */
+  mcpPort?: number
+
+  /** Override host for MCP server (if different from main host) */
+  mcpServerHostOverride?: string
 
   /** MCP authentication (for remote MCP server) */
   mcpAuth?: {
     token: string
   }
-
-  /** MCP port */
-  mcpPort?: number
 
   /** Operation timeout in milliseconds */
   operationTimeoutMs?: number
@@ -150,11 +153,12 @@ const RemoteFilesystemBackendConfigSchema = z.object({
   onDangerousOperation: z.custom<(operation: string) => void>().optional(),
   maxOutputLength: z.number().positive().optional(),
   sshPort: z.number().positive().optional(),
-  mcpServerUrl: z.string().url().optional(),
+  sshHostOverride: z.string().optional(),
+  mcpPort: z.number().positive().optional(),
+  mcpServerHostOverride: z.string().optional(),
   mcpAuth: z.object({
     token: z.string(),
   }).optional(),
-  mcpPort: z.number().positive().optional(),
   operationTimeoutMs: z.number().positive().optional(),
   keepaliveIntervalMs: z.number().positive().optional(),
   keepaliveCountMax: z.number().positive().optional(),

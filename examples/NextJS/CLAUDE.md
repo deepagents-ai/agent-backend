@@ -85,22 +85,53 @@ return result.toUIMessageStreamResponse()
 
 ### Backend Architecture
 
+#### Local Backend (Development)
 ```
-NextJS App
-├── /api/chat → streamText() with MCP tools
-│   └── backend.getMCPClient()
-│       └── Spawns: agent-backend CLI (stdio)
-│           └── LocalFilesystemBackend
-│               └── /tmp/agentbe-workspace
-│
-├── /api/files → Direct backend access
-│   └── LocalFilesystemBackend
-│       └── read(), write(), readdir(), exec()
-│
-└── Client: useChat() manages conversation state
+NextJS App → LocalFilesystemBackend
+  └── getMCPClient() spawns: agent-backend --rootDir /tmp/workspace (stdio)
+      └── agentbed serves local filesystem via stdio MCP
+```
+
+#### Remote Backend (Production)
+```
+NextJS App → RemoteFilesystemBackend
+  ├── SSH client → Remote:2222 (sshd)
+  │   └── Direct filesystem operations (exec, read, write)
+  └── MCP client → Remote:3001 (HTTP)
+      └── agentbed serves /workspace via HTTP MCP
+
+Remote machine runs TWO daemons:
+  1. sshd (SSH daemon) - port 2222
+  2. agentbed (agent backend daemon) - port 3001
+     Command: agent-backend --rootDir /workspace --mcp-port 3001 --mcp-auth-token <token>
+
+Both access the SAME filesystem (/workspace).
 ```
 
 **MCP Client Caching**: MCP clients are cached per session to avoid spawning multiple processes.
+
+## Backend Configuration
+
+### UI-Driven Configuration
+
+Backend settings are configured through the UI, not environment variables:
+
+1. **Click the settings icon** in the header (top right)
+2. **Choose backend type**: Local or Remote
+3. **Configure settings**:
+   - **Local**: Root directory, isolation mode
+   - **Remote**: SSH host, username, password, MCP server URL, root directory
+4. **Click "Save & Restart"** to apply changes
+
+Configuration is stored **in-memory only** and resets on server restart. This keeps the demo app lightweight and stateless.
+
+### Switching Backends
+
+To test remote backend:
+1. Start the remote MCP server (see Remote Backend Testing below)
+2. Open backend settings in the UI
+3. Switch to "Remote" and configure connection details
+4. Save and restart
 
 ## Development Workflow
 
@@ -167,19 +198,11 @@ This uses `mprocs.remote.yaml` to:
 ## Environment Variables
 
 ```bash
-# Required
-AGENTBE_WORKSPACE_ROOT=/tmp/agentbe-workspace
+# Only one required!
 OPENROUTER_API_KEY=sk-or-v1-your-key
-
-# Backend type
-NEXT_PUBLIC_BACKEND_TYPE=local  # or 'remote'
-
-# Remote backend (if using remote)
-REMOTE_VM_HOST=remote-server.com
-REMOTE_VM_USER=agent
-REMOTE_VM_PASSWORD=secret
-REMOTE_MCP_URL=http://remote-server.com:3001
 ```
+
+**Note**: All backend configuration (type, workspace root, isolation mode, remote connection details) is managed via the UI (click the settings icon in the header). Configuration is stored in-memory and resets on server restart.
 
 ## Dependencies
 

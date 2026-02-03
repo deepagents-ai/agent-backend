@@ -44,7 +44,21 @@ interface QueuedOperation<T> {
 }
 
 /**
- * Remote filesystem backend implementation using SSH
+ * Remote filesystem backend implementation using SSH + HTTP MCP
+ *
+ * CLIENT-SIDE ONLY: This backend is used by clients to connect to a remote agentbed.
+ * agentbed (the daemon) does NOT use this - it's just an MCP server with filesystem tools.
+ *
+ * Architecture:
+ * - Machine A (Client): Creates RemoteFilesystemBackend instance
+ * - Machine B (agentbed): Runs `agent-backend --rootDir /workspace --mcp-port 3001`
+ *
+ * The client connects to Machine B via TWO channels:
+ * 1. SSH client → sshd on Machine B (for direct exec, read, write, etc.)
+ * 2. MCP client (HTTP) → agentbed on Machine B (for MCP tool execution)
+ *
+ * Both connections target the same machine and filesystem.
+ *
  * Executes commands and file operations on a remote server via SSH/SFTP
  */
 export class RemoteFilesystemBackend implements FileBasedBackend {
@@ -727,27 +741,32 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
    *
    * @param scopePath - Optional scope path to use as rootDir
    * @returns MCP Client connected to HTTP MCP server on remote host
-   * @throws {BackendError} If mcpServerUrl is not configured
+   * @throws {BackendError} If host is not configured
    */
   async getMCPClient(_scopePath?: string): Promise<MCPClient> {
     // Remote backends MUST use HTTP to connect to MCP server on remote host
-    if (!this.config.mcpServerUrl) {
+    if (!this.config.host) {
       throw new BackendError(
-        'RemoteFilesystemBackend requires mcpServerUrl to be configured. ' +
+        'RemoteFilesystemBackend requires host to be configured. ' +
         'The MCP server must run on the remote host and be accessible via HTTP. ' +
         'Start the MCP server on the remote host with: ' +
         `agent-backend --backend local --rootDir ${this.rootDir} --http-port 3001`,
         ERROR_CODES.INVALID_CONFIGURATION,
-        'mcpServerUrl'
+        'host'
       )
     }
 
     const { Client: MCPClientClass } = await import('@modelcontextprotocol/sdk/client/index.js')
     const { StreamableHTTPClientTransport } = await import('@modelcontextprotocol/sdk/client/streamableHttp.js')
 
+    // Construct MCP server URL from host and port
+    const mcpHost = this.config.mcpServerHostOverride || this.config.host
+    const mcpPort = this.config.mcpPort || 3001
+    const mcpServerUrl = `http://${mcpHost}:${mcpPort}`
+
     // Create HTTP transport to remote MCP server
     const transport = new StreamableHTTPClientTransport(
-      new URL('/mcp', this.config.mcpServerUrl),
+      new URL('/mcp', mcpServerUrl),
       {
         requestInit: {
           headers: {
@@ -838,7 +857,7 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
       const sshClient = new SSH2Client()
 
       const connectConfig: ConnectConfig = {
-        host: this.config.host,
+        host: this.config.sshHostOverride || this.config.host,
         port: this.config.sshPort ?? 22,
         username: this.getUserFromAuth(),
         keepaliveInterval: this.keepaliveIntervalMs,

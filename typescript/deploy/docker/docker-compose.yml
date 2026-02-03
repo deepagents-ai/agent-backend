@@ -19,7 +19,7 @@ services:
       - SSH_USERS=dev:devpassword,admin:adminpassword
 
       # Workspace configuration
-      - WORKSPACE_ROOT=/agent-backend
+      - WORKSPACE_ROOT=/workspace
       - ENABLE_LOGGING=true
 
       # MCP server configuration

@@ -147,24 +147,38 @@ NextJS App (localhost:3000)
 
 ### Remote Deployment
 
-```
-Remote Host:
-  agent-backend CLI (HTTP on port 3001)
-    └── LocalFilesystemBackend
-        └── Remote files
+To connect NextJS app to a remote agentbed:
 
-NextJS App (anywhere):
-├── POST /api/chat → streamText() with MCP tools
-│   └── backend.getMCPClient()
-│       └── HTTP Client
-│           └── Connects to remote-host:3001
-│   Client: useChat() hook manages all state
-└── HTTP → File Operations (Direct backend via SSH)
+**On Remote Machine** (e.g., Docker container):
+```bash
+# Start agentbed (agent backend daemon)
+agent-backend --rootDir /workspace \
+  --mcp-port 3001 \
+  --mcp-auth-token <token>
+
+# SSH daemon (sshd) should also be running
+# Both access the same filesystem: /workspace
 ```
 
-**Key Principle**: "The MCP server has to be in the same system as the files it manages."
+**In NextJS App** (via UI settings):
+- Backend Type: Remote
+- Host: remote-machine.com
+- SSH Port: 2222
+- MCP Port: 3001
+- Username: agentbe
+- Password: <ssh-password>
+- MCP Auth Token: <mcp-auth-token>
 
-For remote backends, the MCP server runs on the remote host with direct filesystem access, avoiding SSH overhead for every file operation.
+**Architecture**:
+```
+NextJS App → RemoteFilesystemBackend
+  ├── SSH (port 2222) for direct file operations (exec, read, write)
+  └── HTTP (port 3001) for MCP tool execution
+```
+
+The app connects via TWO channels to the same remote machine:
+- SSH (port 2222) for direct file operations (exec, read, write)
+- HTTP (port 3001) for MCP tool execution
 
 ## Usage
 

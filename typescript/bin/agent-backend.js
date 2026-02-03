@@ -11,11 +11,6 @@
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
-import {
-  LocalFilesystemBackend,
-  MemoryBackend,
-  RemoteFilesystemBackend
-} from '../dist/index.js'
 import { execSync, spawn } from 'child_process'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
@@ -60,61 +55,37 @@ async function main() {
 // ─────────────────────────────────────────────────────────────────
 
 function parseArgs(args) {
-  const config = {
-    backend: 'local', // default to local
-  }
+  const config = {}
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i]
     const next = args[i + 1]
 
     switch (arg) {
-      // Common options
-      case '--backend':
-        config.backend = next
-        i++
-        break
+      // Daemon options
       case '--rootDir':
         config.rootDir = next
         i++
         break
 
-      // LocalFilesystemBackend options
       case '--isolation':
         config.isolation = next
         i++
         break
+
       case '--shell':
         config.shell = next
         i++
         break
 
-      // RemoteFilesystemBackend options
-      case '--host':
-        config.host = next
-        i++
-        break
-      case '--username':
-        config.username = next
-        i++
-        break
-      case '--password':
-        config.password = next
-        i++
-        break
-      case '--privateKey':
-        config.privateKey = next
-        i++
-        break
-      case '--port':
-        config.port = parseInt(next, 10)
+      // MCP server options
+      case '--mcp-port':
+        config.mcpPort = parseInt(next, 10)
         i++
         break
 
-      // HTTP server options
-      case '--http':
-      case '--http-port':
-        config.httpPort = parseInt(next, 10)
+      case '--mcp-auth-token':
+        config.mcpAuthToken = next
         i++
         break
 
@@ -122,6 +93,14 @@ function parseArgs(args) {
       case '-h':
         printHelp()
         process.exit(0)
+        break
+
+      default:
+        if (arg.startsWith('--')) {
+          console.error(`❌ Error: unrecognized option: ${arg}`)
+          console.error('   Run with --help to see available options')
+          process.exit(1)
+        }
     }
   }
 
@@ -132,35 +111,24 @@ function parseArgs(args) {
     process.exit(1)
   }
 
-  if (!['local', 'remote', 'memory'].includes(config.backend)) {
-    console.error(`❌ Error: Invalid backend type "${config.backend}"`)
-    console.error('   Valid types: local, remote, memory')
+  // Validate isolation mode
+  if (config.isolation && !['auto', 'bwrap', 'software', 'none'].includes(config.isolation)) {
+    console.error(`❌ Error: Invalid isolation mode "${config.isolation}"`)
+    console.error('   Valid modes: auto, bwrap, software, none')
     process.exit(1)
   }
 
-  // Backend-specific validation
-  if (config.backend === 'remote') {
-    if (!config.host) {
-      console.error('❌ Error: --host is required for remote backend')
-      printHelp()
-      process.exit(1)
-    }
-    if (!config.username) {
-      console.error('❌ Error: --username is required for remote backend')
-      printHelp()
-      process.exit(1)
-    }
-    if (!config.password && !config.privateKey) {
-      console.error('❌ Error: Either --password or --privateKey is required for remote backend')
-      printHelp()
-      process.exit(1)
-    }
+  // Validate shell
+  if (config.shell && !['bash', 'sh', 'auto'].includes(config.shell)) {
+    console.error(`❌ Error: Invalid shell "${config.shell}"`)
+    console.error('   Valid shells: bash, sh, auto')
+    process.exit(1)
   }
 
-  // HTTP port validation
-  if (config.httpPort !== undefined) {
-    if (config.httpPort < 1024 || config.httpPort > 65535) {
-      console.error('❌ Error: --http-port must be between 1024-65535')
+  // MCP port validation
+  if (config.mcpPort !== undefined) {
+    if (config.mcpPort < 1024 || config.mcpPort > 65535) {
+      console.error('❌ Error: --mcp-port must be between 1024-65535')
       process.exit(1)
     }
   }
@@ -171,80 +139,33 @@ function parseArgs(args) {
 async function startMCPServer(args) {
   const config = parseArgs(args)
 
-  console.error(`🚀 Starting ${config.backend} MCP server...`)
+  console.error(`🚀 Starting agentbed (agent backend daemon)...`)
   console.error(`📁 Root directory: ${config.rootDir}`)
+  console.error(`🔒 Isolation: ${config.isolation || 'auto'}`)
 
   try {
-    let backend
-
-    // Create backend based on type
-    switch (config.backend) {
-      case 'local': {
-        console.error(`🔒 Isolation: ${config.isolation || 'auto'}`)
-        backend = new LocalFilesystemBackend({
-          rootDir: config.rootDir,
-          isolation: config.isolation,
-          shell: config.shell,
-        })
-        break
-      }
-
-      case 'remote': {
-        console.error(`🌐 SSH Host: ${config.host}`)
-        console.error(`👤 Username: ${config.username}`)
-
-        const sshAuth = config.privateKey
-          ? {
-            type: 'key',
-            credentials: {
-              username: config.username,
-              privateKey: config.privateKey,
-            },
-          }
-          : {
-            type: 'password',
-            credentials: {
-              username: config.username,
-              password: config.password,
-            },
-          }
-
-        backend = new RemoteFilesystemBackend({
-          rootDir: config.rootDir,
-          host: config.host,
-          sshAuth,
-          port: config.port,
-        })
-        break
-      }
-
-      case 'memory': {
-        console.error(`💾 Memory backend (no exec tool)`)
-        backend = new MemoryBackend({
-          rootDir: config.rootDir,
-        })
-        break
-      }
-    }
-
-    // Create adaptive MCP server (automatically detects backend capabilities)
-    const mcpServer = new AgentBackendMCPServer(backend)
+    // Create MCP server directly with config (NO Backend abstraction!)
+    const mcpServer = new AgentBackendMCPServer({
+      rootDir: config.rootDir,
+      isolation: config.isolation,
+      shell: config.shell,
+      preventDangerous: true
+    })
 
     // Choose transport mode based on config
-    if (config.httpPort) {
+    if (config.mcpPort) {
       await startHttpServer(mcpServer, config)
     } else {
       // Connect stdio transport
       const transport = new StdioServerTransport()
       await mcpServer.getServer().connect(transport)
 
-      console.error(`✅ MCP server running on stdio`)
-      console.error(`   Backend: ${config.backend}`)
+      console.error(`✅ agentbed running on stdio`)
       console.error(`   Ready to receive MCP requests`)
     }
 
   } catch (error) {
-    console.error(`❌ Failed to start MCP server: ${error.message}`)
+    console.error(`❌ Failed to start agentbed: ${error.message}`)
     if (error.stack) {
       console.error(error.stack)
     }
@@ -266,23 +187,36 @@ async function startHttpServer(mcpServer, config) {
   app.get('/health', (req, res) => {
     res.json({
       status: 'ok',
-      backend: config.backend,
       rootDir: config.rootDir
     })
   })
 
   // MCP endpoint - transport handles the request
   app.post('/mcp', async (req, res) => {
+    // Validate auth token if configured
+    if (config.mcpAuthToken) {
+      const authHeader = req.headers.authorization
+      const expectedAuth = `Bearer ${config.mcpAuthToken}`
+
+      if (!authHeader || authHeader !== expectedAuth) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid or missing authentication token'
+        })
+        return
+      }
+    }
+
     await transport.handleRequest(req, res)
   })
 
   await new Promise((resolve) => {
-    app.listen(config.httpPort, () => {
-      console.error(`✅ MCP server running on HTTP`)
-      console.error(`   Backend: ${config.backend}`)
-      console.error(`   Port: ${config.httpPort}`)
-      console.error(`   Health: http://localhost:${config.httpPort}/health`)
-      console.error(`   Endpoint: http://localhost:${config.httpPort}/mcp`)
+    app.listen(config.mcpPort, () => {
+      console.error(`✅ agentbed running on HTTP`)
+      console.error(`   Port: ${config.mcpPort}`)
+      console.error(`   Auth: ${config.mcpAuthToken ? 'enabled (token required)' : 'disabled (open access)'}`)
+      console.error(`   Health: http://localhost:${config.mcpPort}/health`)
+      console.error(`   Endpoint: http://localhost:${config.mcpPort}/mcp`)
       resolve()
     })
   })
@@ -352,11 +286,10 @@ async function handleStartRemote(args) {
 
       console.log('✅ Remote backend started successfully')
       console.log('   SSH available at: root@localhost:2222')
+      console.log('   MCP available at: http://localhost:3001')
       console.log('   Default password: agents')
       console.log('')
-      console.log('   Connect using RemoteFilesystemBackend:')
-      console.log('   agent-backend --backend remote --rootDir /workspace \\')
-      console.log('     --host localhost --port 2222 --username root --password agents')
+      console.log('   Connect using RemoteFilesystemBackend from your application')
 
     } catch (error) {
       throw new Error(`Failed to start remote backend: ${error.message}`)
@@ -471,40 +404,35 @@ function runCommand(command) {
 
 function printHelp() {
   console.log(`
-🚀 agent-backend - MCP Server for Agent Backend
+🚀 agentbed (agent-backend) - Agent Backend Daemon
+
+Serves a local filesystem remotely via MCP over HTTP.
+Runs alongside SSH daemon to provide both direct filesystem access (SSH)
+and MCP tool execution (HTTP).
 
 USAGE:
   agent-backend [COMMAND] [OPTIONS]
 
 COMMANDS:
-  (default)              Start an MCP server for the specified backend type
-  start-remote [--build] Start Docker-based remote backend service
-  stop-remote            Stop Docker-based remote backend service
+  (default)              Start agentbed (agent backend daemon)
+  start-remote [--build] Start Docker container with agentbed + SSH daemon
+  stop-remote            Stop Docker container
   help                   Show this help message
 
-MCP SERVER OPTIONS (default command):
-
-  Backend Types:
-    --backend <type>       Backend type (required, default: local)
-                           Options: local, remote, memory
+DAEMON OPTIONS (default command):
 
   Common Options:
-    --rootDir <path>       Root directory for backend (required)
+    --rootDir <path>       Root directory to serve (required)
 
-  Transport Mode:
-    --http-port <port>     Run HTTP server on port (default: stdio mode)
+  Daemon Options:
+    --mcp-port <port>      Run HTTP server on port (default: stdio mode)
                            Port must be between 1024-65535
+    --mcp-auth-token <tok> Authentication token for HTTP endpoint
+                           Clients must send: Authorization: Bearer <token>
 
-  Local Backend Options:
+  Filesystem Options:
     --isolation <mode>     Isolation mode: auto, bwrap, software, none (default: auto)
     --shell <shell>        Shell to use: bash, sh, auto (default: auto)
-
-  Remote Backend Options:
-    --host <host>          SSH host (required for remote)
-    --username <user>      SSH username (required for remote)
-    --password <pass>      SSH password (use --password OR --privateKey)
-    --privateKey <path>    Path to SSH private key file
-    --port <port>          SSH port (default: 22)
 
 REMOTE MANAGEMENT OPTIONS:
 
@@ -513,37 +441,36 @@ REMOTE MANAGEMENT OPTIONS:
 
 EXAMPLES:
 
-  # Start local MCP server with stdio (default)
-  agent-backend --backend local --rootDir /tmp/workspace
+  # Start agentbed with stdio (for local development)
+  agent-backend --rootDir /tmp/workspace
 
-  # Start local MCP server with HTTP
-  agent-backend --backend local --rootDir /tmp/workspace --http-port 3001
+  # Start agentbed with HTTP (for remote deployment)
+  agent-backend --rootDir /workspace --mcp-port 3001
 
-  # Start remote MCP server over HTTP (for remote deployments)
-  agent-backend --backend local --rootDir /var/workspace --http-port 3001
+  # Start agentbed with HTTP and authentication
+  agent-backend --rootDir /workspace --mcp-port 3001 \\
+    --mcp-auth-token my-secret-token
 
-  # Start remote MCP server connecting to SSH host (stdio mode)
-  agent-backend --backend remote --rootDir /var/workspace \\
-    --host server.example.com --username user --password secret
+  # Start with bubblewrap isolation (Linux only)
+  agent-backend --rootDir /workspace --mcp-port 3001 --isolation bwrap
 
-  # Start memory backend (no exec tool)
-  agent-backend --backend memory --rootDir /memory
-
-  # Start Docker remote backend service
+  # Start Docker container with agentbed + SSH daemon
   agent-backend start-remote
 
-  # Stop Docker remote backend service
+  # Stop Docker container
   agent-backend stop-remote
 
-  # Rebuild and restart Docker remote backend
+  # Rebuild and restart Docker container
   agent-backend start-remote --build
 
 NOTES:
-  - Stdio transport is default (for local connections)
-  - HTTP transport is used for remote deployments (--http-port)
-  - Only local and remote backends support the 'exec' tool
-  - Memory backend provides filesystem-like operations on key/value store
-  - Docker remote backend provides an SSH-accessible filesystem service
+  - Stdio transport is default (for local development via MCP client)
+  - HTTP transport is for remote deployments (--mcp-port)
+  - HTTP without --mcp-auth-token has NO authentication (open access)
+  - Use --mcp-auth-token to secure HTTP endpoints (required for production)
+  - The daemon serves its LOCAL filesystem - it's "remote" from the client's perspective
+  - Clients use RemoteFilesystemBackend to connect via SSH + HTTP MCP
+  - Docker deployment includes both SSH daemon and agentbed on same container
 `)
 }
 

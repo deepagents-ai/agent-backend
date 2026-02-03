@@ -1,6 +1,13 @@
-# Agent Backend Remote Service
+# agentbed - Agent Backend Daemon Deployment
 
-This directory contains the Docker configuration for the Agent Backend remote service - a deployable POSIX filesystem accessible via SSH and MCP (Model Context Protocol).
+Deploy agentbed (agent backend daemon) to a remote server using Docker.
+
+agentbed serves a local filesystem remotely via MCP over HTTP.
+
+The deployment provides:
+- SSH access for direct filesystem operations (via sshd)
+- HTTP MCP endpoint for tool execution (via agentbed)
+- Isolated workspace environment
 
 ## Quick Start
 
@@ -115,38 +122,51 @@ The MCP server provides a standardized interface for AI applications to interact
    npm run dev
    ```
 
-### Development Setup (SSH Backend)
+## Deployment Architecture
 
-1. Start the remote backend:
-   ```bash
-   cd remote/
-   docker-compose up -d
-   ```
+The daemon runs on a remote machine (typically in Docker) and serves
+its local filesystem to remote clients.
 
-2. In your application:
-   ```bash
-   # Build native library
-   npx agent-backend build-native --output ./build/
-   
-   # Run with environment variable
-   REMOTE_VM_HOST=root@localhost:2222 \
-   LD_PRELOAD=./build/libintercept.so \
-   npm run dev
-   ```
+```
+Machine A (Client):
+  └── RemoteFilesystemBackend
+      ├── SSH → Machine B:2222 (direct filesystem ops via sshd)
+      └── MCP client → Machine B:3001 (tool execution via agentbed)
 
-3. Use in your code:
-   ```javascript
-   import { FileSystem } from 'agent-backend'
-   
-   const fs = new FileSystem({
-     type: 'remote',
-     workspace: '/workspace/projects',
-     auth: {
-       type: 'password',
-       credentials: {
-         username: 'root',
-         password: 'agents'
-       }
+Machine B (Docker Container):
+  ├── SSH daemon (sshd) - port 2222
+  └── agentbed - port 3001
+      └── Serves /workspace via MCP/HTTP
+```
+
+Both SSH and agentbed run on the **same machine**, accessing the **same filesystem**.
+
+### Remote Backend Usage
+
+Use RemoteFilesystemBackend in your application:
+
+```javascript
+import { RemoteFilesystemBackend } from 'agent-backend'
+
+const remote = new RemoteFilesystemBackend({
+  rootDir: '/workspace',
+  host: 'localhost',
+  sshPort: 2222,
+  mcpPort: 3001,
+  sshAuth: {
+    type: 'password',
+    credentials: {
+      username: 'root',
+      password: 'agents'
+    }
+  },
+  mcpAuthToken: 'your-secure-token'
+})
+
+await remote.connect()
+await remote.exec('npm install')
+await remote.write('config.json', '{}')
+const files = await remote.readdir('src')
      }
    })
    

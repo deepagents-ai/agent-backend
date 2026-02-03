@@ -10,4 +10,5 @@
  */
 
 export { AgentBackendMCPServer } from './AgentBackendMCPServer.js'
+export type { AgentBackendMCPServerConfig } from './AgentBackendMCPServer.js'
 export { registerFilesystemTools, registerExecTool } from './tools.js'

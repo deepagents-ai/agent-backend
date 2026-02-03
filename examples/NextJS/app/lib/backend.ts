@@ -1,5 +1,6 @@
 import type { FileBasedBackend } from 'agent-backend'
 import { LocalFilesystemBackend, RemoteFilesystemBackend } from 'agent-backend'
+import { backendConfig } from './backend-config'
 
 class BackendManager {
   private backend: FileBasedBackend | null = null
@@ -37,49 +38,31 @@ class BackendManager {
   }
 
   private async initializeBackend(): Promise<void> {
-    const type = this.currentType || (process.env.NEXT_PUBLIC_BACKEND_TYPE as 'local' | 'remote') || 'local'
-    this.currentType = type
-    const rootDir = process.env.AGENTBE_WORKSPACE_ROOT
+    const config = backendConfig.getConfig()
+    this.currentType = config.type
 
-    if (!rootDir) {
-      throw new Error('AGENTBE_WORKSPACE_ROOT environment variable is required')
-    }
+    if (config.type === 'remote' && config.remote) {
+      const remote = config.remote
 
-    if (type === 'remote') {
-      const host = process.env.REMOTE_VM_HOST
-      const username = process.env.REMOTE_VM_USER
-      const password = process.env.REMOTE_VM_PASSWORD
-      const privateKey = process.env.REMOTE_VM_PRIVATE_KEY
-      const mcpServerUrl = process.env.REMOTE_MCP_URL
-
-      if (!host || !username) {
-        throw new Error('REMOTE_VM_HOST and REMOTE_VM_USER required for remote backend')
+      if (!remote.host) {
+        throw new Error('Remote backend requires host')
       }
 
-      if (!password && !privateKey) {
-        throw new Error('REMOTE_VM_PASSWORD or REMOTE_VM_PRIVATE_KEY required for remote backend')
+      if (!remote.sshAuth || !remote.sshAuth.credentials.username) {
+        throw new Error('Remote backend requires SSH credentials')
       }
 
-      if (!mcpServerUrl) {
-        throw new Error('REMOTE_MCP_URL required for remote backend (e.g., http://remote-host:3001)')
-      }
-
-      this.backend = new RemoteFilesystemBackend({
-        rootDir,
-        host,
-        sshAuth: {
-          type: privateKey ? 'key' : 'password',
-          credentials: {
-            username,
-            ...(privateKey ? { privateKey } : { password }),
-          },
-        },
-        mcpServerUrl,
-      })
+      // RemoteFilesystemBackend will construct MCP server URL from host + mcpPort
+      this.backend = new RemoteFilesystemBackend(remote)
     } else {
-      this.backend = new LocalFilesystemBackend({
-        rootDir,
+      const local = config.local || {
+        rootDir: '/tmp/agentbe-workspace',
         isolation: 'software',
+      }
+
+      this.backend = new LocalFilesystemBackend({
+        rootDir: local.rootDir,
+        isolation: local.isolation || 'software',
       })
     }
 
