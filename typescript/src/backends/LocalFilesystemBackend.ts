@@ -1,7 +1,7 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { execSync, spawn } from 'child_process'
 import type { Stats } from 'fs'
-import { access, mkdir as fsMkdir, readdir, readFile, stat, writeFile } from 'fs/promises'
+import { access, mkdir as fsMkdir, readdir, readFile, rename as fsRename, rm as fsRm, stat, writeFile } from 'fs/promises'
 import * as path from 'path'
 import { ERROR_CODES } from '../constants.js'
 import { isCommandSafe, isDangerous } from '../safety.js'
@@ -410,6 +410,60 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     } catch (error) {
       throw new BackendError(
         `Failed to write file: ${relativePath}`,
+        ERROR_CODES.WRITE_FAILED,
+        error instanceof Error ? error.message : String(error)
+      )
+    }
+  }
+
+  /**
+   * Read file contents (alias for read, matches Node fs.promises API)
+   */
+  async readFile(relativePath: string, options?: ReadOptions): Promise<string | Buffer> {
+    return this.read(relativePath, options)
+  }
+
+  /**
+   * Write content to file (alias for write, matches Node fs.promises API)
+   */
+  async writeFile(relativePath: string, content: string | Buffer): Promise<void> {
+    return this.write(relativePath, content)
+  }
+
+  /**
+   * Rename or move a file/directory (matches Node fs.promises API)
+   */
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    const fullOldPath = this.resolvePath(oldPath)
+    const fullNewPath = this.resolvePath(newPath)
+
+    try {
+      // Ensure destination parent directory exists
+      await fsMkdir(path.dirname(fullNewPath), { recursive: true })
+      await fsRename(fullOldPath, fullNewPath)
+    } catch (error) {
+      throw new BackendError(
+        `Failed to rename ${oldPath} to ${newPath}`,
+        ERROR_CODES.WRITE_FAILED,
+        error instanceof Error ? error.message : String(error)
+      )
+    }
+  }
+
+  /**
+   * Delete files and directories (matches Node fs.promises API)
+   */
+  async rm(relativePath: string, options?: { recursive?: boolean, force?: boolean }): Promise<void> {
+    const fullPath = this.resolvePath(relativePath)
+
+    try {
+      await fsRm(fullPath, {
+        recursive: options?.recursive ?? false,
+        force: options?.force ?? false
+      })
+    } catch (error) {
+      throw new BackendError(
+        `Failed to delete: ${relativePath}`,
         ERROR_CODES.WRITE_FAILED,
         error instanceof Error ? error.message : String(error)
       )

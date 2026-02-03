@@ -18,7 +18,10 @@ export async function GET(req: NextRequest) {
 
     const filename = path.split('/').pop() || 'download.txt'
 
-    return new NextResponse(content, {
+    // Convert Buffer to Uint8Array if needed
+    const body = Buffer.isBuffer(content) ? new Uint8Array(content) : content
+
+    return new NextResponse(body, {
       headers: {
         'Content-Type': 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${filename}"`,

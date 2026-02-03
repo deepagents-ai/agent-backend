@@ -1,38 +1,51 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { v4 as uuidv4 } from 'uuid'
-import { activeStreams } from '@/lib/stream-storage'
+import { createMCPClient } from '@/lib/mcp-client'
+import { openrouter } from '@openrouter/ai-sdk-provider'
+import { convertToModelMessages, streamText } from 'ai'
 
-export async function POST(req: NextRequest) {
-  try {
-    const { content, sessionId } = await req.json()
+// MCP client cache per session
+const mcpClients = new Map<string, any>()
 
-    if (!content || !sessionId) {
-      return NextResponse.json(
-        { error: 'content and sessionId required' },
-        { status: 400 }
-      )
-    }
-
-    // Generate stream ID
-    const streamId = uuidv4()
-
-    // Store stream metadata
-    activeStreams.set(streamId, {
-      sessionId,
-      content,
-    })
-
-    // Clean up after 5 minutes
-    setTimeout(() => activeStreams.delete(streamId), 5 * 60 * 1000)
-
-    return NextResponse.json({
-      streamId,
-      streamUrl: `/api/chat/stream?id=${streamId}`
-    })
-  } catch (error) {
-    return NextResponse.json(
-      { error: error instanceof Error ? error.message : 'Failed to process message' },
-      { status: 500 }
-    )
+async function getMCPClient(sessionId: string) {
+  if (mcpClients.has(sessionId)) {
+    return mcpClients.get(sessionId)
   }
+
+  const client = await createMCPClient()
+  mcpClients.set(sessionId, client)
+  return client
+}
+
+export async function POST(req: Request) {
+  const { id, messages, sessionId } = await req.json()
+
+  // Get MCP client and convert tools
+  const mcpClient = await getMCPClient(sessionId)
+  const toolsResult = await mcpClient.listTools()
+
+  const tools = toolsResult.tools.reduce((acc: any, tool: any) => {
+    acc[tool.name] = {
+      description: tool.description,
+      parameters: tool.inputSchema,
+      execute: async (params: any) => {
+        const result = await mcpClient.callTool({
+          name: tool.name,
+          arguments: params,
+        })
+        return result.content
+      },
+    }
+    return acc
+  }, {})
+
+  // Convert UI messages to model messages
+  const modelMessages = await convertToModelMessages(messages, { tools })
+
+  // Stream AI response with tools
+  const result = streamText({
+    model: openrouter('anthropic/claude-4.5-sonnet'),
+    messages: modelMessages,
+    tools,
+  })
+
+  return result.toUIMessageStreamResponse()
 }

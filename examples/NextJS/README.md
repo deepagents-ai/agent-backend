@@ -4,24 +4,27 @@ Full-featured demo showcasing agent-backend with AI chat, file management, and d
 
 ## Features
 
-- 🤖 **AI Chat** - Streaming responses via HTTP + SSE with tool execution visibility
+- 🤖 **AI Chat** - Streaming responses with Vercel AI SDK (`useChat` hook) and MCP tools
 - 📁 **File Explorer** - Real-time file tree with upload/download capabilities
 - ✏️ **Code Editor** - Monaco editor for direct file editing with syntax highlighting
 - 🔌 **Flexible Backend** - Support for both local and remote (SSH) backends
 - 🎨 **Professional UI** - Enterprise-appropriate design with modern aesthetics
+- 🔄 **Multi-Step Agentic** - Agent continues using tools until task is complete (`maxSteps: 10`)
 
 ## Quick Start
 
-### 1. Install Dependencies
+### 1. Install Dependencies (from monorepo root)
 
 ```bash
-cd examples/NextJS
-pnpm install
+make install
 ```
+
+This installs dependencies for all packages (TypeScript library + NextJS example).
 
 ### 2. Configure Environment
 
 ```bash
+cd examples/NextJS
 cp .env.example .env.local
 ```
 
@@ -48,13 +51,23 @@ REMOTE_MCP_URL=http://example.com:3001
 mkdir -p /tmp/agentbe-workspace
 ```
 
-### 4. Run Development Server
+### 4. Run Development (from monorepo root)
 
 ```bash
-pnpm run dev
+make dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+This uses **mprocs** to run:
+- TypeScript watch mode (rebuilds on changes)
+- NextJS dev server (hot reload)
+
+Open [http://localhost:3001](http://localhost:3001) in your browser.
+
+**Alternative**: Run individual commands:
+```bash
+cd typescript && pnpm run dev &      # TypeScript watch
+cd examples/NextJS && pnpm run dev & # NextJS dev server
+```
 
 ### Remote Setup (Optional)
 
@@ -70,9 +83,9 @@ agent-backend \
   --http-port 3001
 ```
 
-**On your local machine (NextJS app):**
+**On your local machine:**
 
-Configure `.env.local` for remote:
+Configure `examples/NextJS/.env.local` for remote:
 
 ```bash
 AGENTBE_WORKSPACE_ROOT=/workspace
@@ -84,44 +97,53 @@ REMOTE_MCP_URL=http://remote-server.com:3001
 OPENROUTER_API_KEY=sk-or-v1-your-key-here
 ```
 
-Then run the NextJS app:
+Then run from monorepo root:
 
 ```bash
-pnpm run dev
+make dev-remote  # Uses mprocs with remote backend config
 ```
 
 ## Architecture
 
 ### Real-Time AI Chat
 
-The app uses **HTTP + Server-Sent Events (SSE)** for streaming AI responses:
+The app uses **Vercel AI SDK** for streaming AI responses with automatic state management:
 
-1. **User sends message**: `POST /api/chat` with message content
-2. **Server initiates stream**: Returns `streamUrl` for SSE connection
-3. **Client connects to SSE**: `EventSource` listens for streaming events
-4. **AI streams response**: Server sends `text_delta`, `tool_start`, `tool_result` events
-5. **Stream completes**: Server sends `message_end` and closes connection
+**Client** (`useChat` hook):
+- Manages messages, input, loading states automatically
+- Handles streaming responses and tool invocations
+- Provides `handleSubmit` for sending messages
 
-**Why SSE instead of WebSocket?**
-- ✅ Works natively in Next.js App Router (no custom server needed)
-- ✅ Built-in browser API (`EventSource`)
-- ✅ Perfect for one-way server→client streaming
-- ✅ Automatic reconnection
-- ✅ Simple HTTP response with `text/event-stream` content-type
+**Server** (`streamText` + MCP tools):
+1. Receives messages from client at `POST /api/chat`
+2. Converts MCP tools to AI SDK format
+3. Streams AI response using `streamText()` with `maxSteps: 10` for agentic behavior
+4. Returns data stream with `toDataStreamResponse()`
+
+**Why Vercel AI SDK?**
+- ✅ Automatic conversation state management
+- ✅ Built-in streaming support
+- ✅ Tool invocations handled automatically
+- ✅ Multi-step agentic behavior with `maxSteps`
+- ✅ Works natively in Next.js App Router
+- ✅ Type-safe React hooks
 
 ### Local Development
 
 ```
 NextJS App (localhost:3000)
-├── HTTP + SSE → AI Chat (MCP protocol)
+├── POST /api/chat → streamText() with MCP tools
 │   └── backend.getMCPClient()
 │       └── Spawns: agent-backend CLI (stdio)
 │           └── LocalFilesystemBackend
 │               └── Local files
+│   Client: useChat() hook manages all state
 └── HTTP → File Operations (Direct backend access)
 ```
 
 **Automatic MCP Server Management**: The MCP server is automatically spawned and managed by `LocalFilesystemBackend.getMCPClient()`. No separate process to start manually!
+
+**Simplified State Management**: `useChat()` hook automatically handles messages, streaming, tool invocations, and loading states.
 
 ### Remote Deployment
 
@@ -132,10 +154,11 @@ Remote Host:
         └── Remote files
 
 NextJS App (anywhere):
-├── HTTP + SSE → AI Chat (MCP protocol)
+├── POST /api/chat → streamText() with MCP tools
 │   └── backend.getMCPClient()
 │       └── HTTP Client
 │           └── Connects to remote-host:3001
+│   Client: useChat() hook manages all state
 └── HTTP → File Operations (Direct backend via SSH)
 ```
 
@@ -147,10 +170,20 @@ For remote backends, the MCP server runs on the remote host with direct filesyst
 
 ### Chat with AI
 
-1. Type a message in the chat input
-2. AI responses stream in real-time
-3. Tool executions appear as collapsible cards
-4. Files created by AI automatically appear in the explorer
+1. Type a message in the chat input (e.g., "Create a Python script that prints hello world")
+2. AI responses stream in real-time character-by-character
+3. Tool invocations appear as collapsible cards showing:
+   - Tool name and parameters
+   - Execution status (pending → completed)
+   - Tool results/output
+4. Agent automatically continues using tools until task is complete (up to 10 steps)
+5. Files created by AI automatically appear in the file explorer
+
+**Example prompts:**
+- "Create a package.json with express and nodemon"
+- "Write a README explaining this project"
+- "Run `ls -la` and show me the results"
+- "Create a React component called Button.tsx"
 
 ### File Management
 
@@ -165,6 +198,33 @@ For remote backends, the MCP server runs on the remote host with direct filesyst
 - Syntax highlighting based on file extension
 - Format JSON files with Format button
 - Auto-save indication when changes are pending
+
+## Technology Stack
+
+### AI & Streaming
+- **Vercel AI SDK v6** - `useChat()` hook for automatic conversation state management
+- **OpenRouter** - Access to Claude 3.5 Sonnet via unified API
+- **Model Context Protocol (MCP)** - Standard protocol for AI tool integration
+
+### Frontend
+- **Next.js 15** - App Router with React Server Components
+- **TypeScript** - Full type safety across the stack
+- **Tailwind CSS** - Utility-first styling
+- **Monaco Editor** - VS Code's editor component
+- **React Markdown** - Render AI responses with markdown formatting
+- **Lucide Icons** - Modern icon library
+
+### Backend
+- **agent-backend** - Secure isolated backend for AI agents
+  - LocalFilesystemBackend - Direct filesystem access with isolation
+  - RemoteFilesystemBackend - SSH-based remote operations
+  - MemoryBackend - In-memory key/value storage
+- **MCP SDK** - Client/server implementation for tool protocol
+
+### Development
+- **mprocs** - Multi-process orchestration (TypeScript watch + NextJS dev)
+- **pnpm** - Fast, disk-efficient package manager
+- **Vitest** - Fast unit testing for TypeScript library
 
 ## Development
 

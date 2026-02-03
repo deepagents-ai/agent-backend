@@ -1,160 +1,55 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
-import { Send, Bot, User, ChevronDown, ChevronUp } from 'lucide-react'
+import { useChat } from '@ai-sdk/react'
+import { DefaultChatTransport } from 'ai'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
-
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  toolCalls?: ToolCall[]
-}
-
-interface ToolCall {
-  name: string
-  params: Record<string, unknown>
-  output?: string
-  duration_ms?: number
-}
+import { Bot, ChevronDown, ChevronUp, Send, User } from 'lucide-react'
 
 interface ChatProps {
   sessionId: string
 }
 
 export default function Chat({ sessionId }: ChatProps) {
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState('')
-  const [isConnected, setIsConnected] = useState(false)
-  const [isTyping, setIsTyping] = useState(false)
-  const [currentMessage, setCurrentMessage] = useState('')
-  const [currentTools, setCurrentTools] = useState<ToolCall[]>([])
   const [expandedTools, setExpandedTools] = useState<Set<string>>(new Set())
+  const [input, setInput] = useState('')
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const eventSourceRef = useRef<EventSource | null>(null)
 
-  useEffect(() => {
-    // No persistent connection needed for HTTP + SSE
-    // Each message will create its own POST + SSE connection
-    setIsConnected(true)
-  }, [sessionId])
+  const transport = useMemo(
+    () =>
+      new DefaultChatTransport({
+        api: '/api/chat',
+        body: { sessionId },
+      }),
+    [sessionId]
+  )
+
+  const { messages, sendMessage, status } = useChat({
+    transport,
+  })
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, currentMessage])
+  }, [messages])
 
-  const handleSend = async () => {
-    if (!input.trim() || isTyping) return
+  const isLoading = status === 'submitted' || status === 'streaming'
+  const isButtonDisabled = !input.trim() || isLoading
 
-    const messageContent = input
-    const userMessage: Message = {
-      id: Date.now().toString(),
-      role: 'user',
-      content: messageContent,
-    }
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!input.trim() || isLoading) return
 
-    setMessages(prev => [...prev, userMessage])
+    await sendMessage({ text: input })
     setInput('')
-    setIsTyping(true)
-    setCurrentMessage('')
-    setCurrentTools([])
-
-    // Track accumulated message content within this request
-    let accumulatedMessage = ''
-    let accumulatedTools: ToolCall[] = []
-
-    try {
-      // 1. POST message to initiate stream
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          content: messageContent,
-          sessionId,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error('Failed to send message')
-      }
-
-      const { streamUrl } = await response.json()
-
-      // 2. Connect to SSE stream
-      const eventSource = new EventSource(streamUrl)
-      eventSourceRef.current = eventSource
-
-      eventSource.addEventListener('connected', () => {
-        console.log('[Chat] SSE connected')
-      })
-
-      eventSource.addEventListener('message_start', () => {
-        setIsTyping(true)
-        setCurrentMessage('')
-        setCurrentTools([])
-        accumulatedMessage = ''
-        accumulatedTools = []
-      })
-
-      eventSource.addEventListener('text_delta', (e) => {
-        const data = JSON.parse(e.data)
-        accumulatedMessage += data.text
-        setCurrentMessage(accumulatedMessage)
-      })
-
-      eventSource.addEventListener('tool_start', (e) => {
-        const data = JSON.parse(e.data)
-        const newTool = {
-          name: data.name,
-          params: data.params,
-        }
-        accumulatedTools.push(newTool)
-        setCurrentTools([...accumulatedTools])
-      })
-
-      eventSource.addEventListener('tool_result', (e) => {
-        const data = JSON.parse(e.data)
-        accumulatedTools = accumulatedTools.map(tool =>
-          tool.name === data.name
-            ? { ...tool, output: data.output, duration_ms: data.duration_ms }
-            : tool
-        )
-        setCurrentTools([...accumulatedTools])
-      })
-
-      eventSource.addEventListener('message_end', (e) => {
-        const data = JSON.parse(e.data)
-        setIsTyping(false)
-        setMessages(prev => [...prev, {
-          id: data.id,
-          role: 'assistant',
-          content: accumulatedMessage,
-          toolCalls: accumulatedTools.length > 0 ? accumulatedTools : undefined,
-        }])
-        setCurrentMessage('')
-        setCurrentTools([])
-        eventSource.close()
-      })
-
-      eventSource.addEventListener('error', () => {
-        console.error('[Chat] SSE error')
-        setIsTyping(false)
-        eventSource.close()
-      })
-
-    } catch (error) {
-      console.error('[Chat] Failed to send message:', error)
-      setIsTyping(false)
-    }
   }
 
-  const toggleToolExpand = (key: string) => {
+  const toggleToolExpand = (toolKey: string) => {
     setExpandedTools(prev => {
       const next = new Set(prev)
-      if (next.has(key)) {
-        next.delete(key)
+      if (next.has(toolKey)) {
+        next.delete(toolKey)
       } else {
-        next.add(key)
+        next.add(toolKey)
       }
       return next
     })
@@ -163,7 +58,7 @@ export default function Chat({ sessionId }: ChatProps) {
   return (
     <div className="flex-1 flex flex-col bg-bg-app">
       <div className="flex-1 overflow-y-auto scrollbar-thin p-6 space-y-4">
-        {messages.length === 0 && !isTyping && (
+        {messages.length === 0 && !isLoading && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-600 to-accent-purple flex items-center justify-center mb-4">
               <Bot className="w-8 h-8 text-white" />
@@ -175,135 +70,139 @@ export default function Chat({ sessionId }: ChatProps) {
           </div>
         )}
 
-        {messages.map((message) => (
-          <div
-            key={message.id}
-            className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-          >
-            {message.role === 'assistant' && (
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-600 to-accent-purple flex items-center justify-center flex-shrink-0">
-                <Bot className="w-5 h-5 text-white" />
-              </div>
-            )}
+        {messages.map((message) => {
+          // Extract text parts
+          const textParts = message.parts.filter((p: any) => p.type === 'text')
+          const textContent = textParts.map((p: any) => p.text).join('')
 
-            <div className={`max-w-[70%] ${message.role === 'user' ? 'order-first' : ''}`}>
-              <div
-                className={`rounded-lg px-4 py-3 ${
-                  message.role === 'user'
-                    ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white'
-                    : 'bg-bg-surface text-text-primary'
-                }`}
-              >
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown>
-                    {message.content}
-                  </ReactMarkdown>
+          // Extract tool parts
+          const toolParts = message.parts.filter(
+            (p: any) => p.type.startsWith('tool-') || p.type === 'dynamic-tool'
+          )
+
+          return (
+            <div
+              key={message.id}
+              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-600 to-accent-purple flex items-center justify-center flex-shrink-0">
+                  <Bot className="w-5 h-5 text-white" />
                 </div>
-              </div>
+              )}
 
-              {message.toolCalls && message.toolCalls.length > 0 && (
-                <div className="mt-2 space-y-2">
-                  {message.toolCalls.map((tool, index) => {
-                    const toolKey = `${message.id}-${index}`
-                    return (
-                      <div key={toolKey} className="bg-bg-surface rounded-lg border border-border-subtle overflow-hidden">
-                        <button
-                          onClick={() => toggleToolExpand(toolKey)}
-                          className="w-full flex items-center justify-between p-3 hover:bg-bg-elevated transition-colors"
-                        >
-                          <div className="flex items-center gap-2">
-                            <div className="w-2 h-2 rounded-full bg-accent-green" />
-                            <span className="text-sm font-medium text-text-primary">{tool.name}</span>
-                            {tool.duration_ms !== undefined && (
-                              <span className="text-xs text-text-tertiary">({tool.duration_ms}ms)</span>
+              <div className={`max-w-[70%] ${message.role === 'user' ? 'order-first' : ''}`}>
+                {textContent && (
+                  <div
+                    className={`rounded-lg px-4 py-3 ${
+                      message.role === 'user'
+                        ? 'bg-gradient-to-r from-primary-600 to-primary-700 text-white'
+                        : 'bg-bg-surface text-text-primary'
+                    }`}
+                  >
+                    <div className="prose prose-invert prose-sm max-w-none">
+                      <ReactMarkdown>{textContent}</ReactMarkdown>
+                    </div>
+                  </div>
+                )}
+
+                {toolParts.length > 0 && (
+                  <div className="mt-2 space-y-2">
+                    {toolParts.map((tool: any, index: number) => {
+                      const toolKey = `${message.id}-${index}`
+                      const toolName = tool.type === 'dynamic-tool' ? tool.toolName : tool.type.replace('tool-', '')
+                      const hasOutput = tool.state === 'output-available'
+                      const isStreaming = tool.state === 'input-streaming' || tool.state === 'output-streaming'
+
+                      return (
+                        <div key={toolKey} className="bg-bg-surface rounded-lg border border-border-subtle overflow-hidden">
+                          <button
+                            onClick={() => toggleToolExpand(toolKey)}
+                            className="w-full flex items-center justify-between p-3 hover:bg-bg-elevated transition-colors"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div
+                                className={`w-2 h-2 rounded-full ${
+                                  hasOutput ? 'bg-accent-green' : isStreaming ? 'bg-accent-amber animate-pulse' : 'bg-accent-blue'
+                                }`}
+                              />
+                              <span className="text-sm font-medium text-text-primary">{toolName}</span>
+                              {hasOutput && <span className="text-xs text-text-tertiary">(completed)</span>}
+                              {isStreaming && <span className="text-xs text-text-tertiary">(streaming)</span>}
+                            </div>
+                            {expandedTools.has(toolKey) ? (
+                              <ChevronUp className="w-4 h-4 text-text-tertiary" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-text-tertiary" />
                             )}
-                          </div>
-                          {expandedTools.has(toolKey) ? (
-                            <ChevronUp className="w-4 h-4 text-text-tertiary" />
-                          ) : (
-                            <ChevronDown className="w-4 h-4 text-text-tertiary" />
-                          )}
-                        </button>
+                          </button>
 
-                        {expandedTools.has(toolKey) && (
-                        <div className="border-t border-border-subtle p-3 space-y-2">
-                          <div>
-                            <p className="text-xs font-medium text-text-tertiary mb-1">Parameters:</p>
-                            <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary">
-                              {JSON.stringify(tool.params, null, 2)}
-                            </pre>
-                          </div>
-                          {tool.output && (
-                            <div>
-                              <p className="text-xs font-medium text-text-tertiary mb-1">Output:</p>
-                              <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary">
-                                {tool.output}
-                              </pre>
+                          {expandedTools.has(toolKey) && (
+                            <div className="border-t border-border-subtle p-3 space-y-2">
+                              {tool.input && (
+                                <div>
+                                  <p className="text-xs font-medium text-text-tertiary mb-1">Input:</p>
+                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary">
+                                    {JSON.stringify(tool.input, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                              {tool.output && (
+                                <div>
+                                  <p className="text-xs font-medium text-text-tertiary mb-1">Output:</p>
+                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary">
+                                    {JSON.stringify(tool.output, null, 2)}
+                                  </pre>
+                                </div>
+                              )}
+                              {tool.errorText && (
+                                <div>
+                                  <p className="text-xs font-medium text-text-red mb-1">Error:</p>
+                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-red">
+                                    {tool.errorText}
+                                  </pre>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
-                      )}
-                    </div>
-                    )
-                  })}
-                </div>
-              )}
-            </div>
-
-            {message.role === 'user' && (
-              <div className="w-8 h-8 rounded-lg bg-bg-elevated flex items-center justify-center flex-shrink-0">
-                <User className="w-5 h-5 text-text-secondary" />
+                      )
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        ))}
 
-        {isTyping && (
-          <div className="flex gap-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary-600 to-accent-purple flex items-center justify-center flex-shrink-0">
-              <Bot className="w-5 h-5 text-white" />
-            </div>
-            <div className="bg-bg-surface rounded-lg px-4 py-3">
-              {currentMessage ? (
-                <div className="prose prose-invert prose-sm max-w-none">
-                  <ReactMarkdown>
-                    {currentMessage}
-                  </ReactMarkdown>
-                </div>
-              ) : (
-                <div className="flex gap-1">
-                  <div className="w-2 h-2 rounded-full bg-text-tertiary animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-text-tertiary animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <div className="w-2 h-2 rounded-full bg-text-tertiary animate-bounce" style={{ animationDelay: '300ms' }} />
+              {message.role === 'user' && (
+                <div className="w-8 h-8 rounded-lg bg-bg-elevated flex items-center justify-center flex-shrink-0">
+                  <User className="w-5 h-5 text-text-secondary" />
                 </div>
               )}
             </div>
-          </div>
-        )}
+          )
+        })}
 
         <div ref={messagesEndRef} />
       </div>
 
       <div className="border-t border-border-subtle p-4">
-        <div className="flex gap-2">
+        <form onSubmit={handleSubmit} className="flex gap-2">
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
             placeholder="Ask me to create files, run commands..."
-            disabled={isTyping}
+            disabled={isLoading}
             className="flex-1 px-4 py-3 bg-bg-surface border border-border-subtle rounded-lg text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-primary-600 disabled:opacity-50"
           />
           <button
-            onClick={handleSend}
-            disabled={!input.trim() || isTyping}
+            type="submit"
+            disabled={isButtonDisabled}
             className="px-6 py-3 bg-primary-600 hover:bg-primary-700 disabled:bg-bg-elevated disabled:text-text-tertiary rounded-lg text-white font-medium transition-colors flex items-center gap-2"
           >
             <Send className="w-4 h-4" />
             Send
           </button>
-        </div>
+        </form>
       </div>
     </div>
   )

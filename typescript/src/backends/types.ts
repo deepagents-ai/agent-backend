@@ -80,11 +80,39 @@ export interface FileBasedBackend extends Backend {
   read(path: string, options?: ReadOptions): Promise<string | Buffer>
 
   /**
+   * Read file contents (alias for read, matches Node fs.promises API)
+   * @param path - Relative path to file
+   * @param options - Read options including encoding
+   */
+  readFile(path: string, options?: ReadOptions): Promise<string | Buffer>
+
+  /**
    * Write content to file
    * @param path - Relative path to file
    * @param content - Content to write
    */
   write(path: string, content: string | Buffer): Promise<void>
+
+  /**
+   * Write content to file (alias for write, matches Node fs.promises API)
+   * @param path - Relative path to file
+   * @param content - Content to write
+   */
+  writeFile(path: string, content: string | Buffer): Promise<void>
+
+  /**
+   * Rename or move a file/directory (matches Node fs.promises API)
+   * @param oldPath - Current path
+   * @param newPath - New path
+   */
+  rename(oldPath: string, newPath: string): Promise<void>
+
+  /**
+   * Delete files and directories (matches Node fs.promises API)
+   * @param path - Path to delete
+   * @param options - Options including recursive and force flags
+   */
+  rm(path: string, options?: { recursive?: boolean, force?: boolean }): Promise<void>
 
   /**
    * List directory contents
@@ -172,11 +200,39 @@ export interface ScopedBackend<T extends FileBasedBackend> {
   read(path: string, options?: ReadOptions): Promise<string | Buffer>
 
   /**
+   * Read file contents (alias for read, matches Node fs.promises API)
+   * @param path - Relative path to file
+   * @param options - Read options including encoding
+   */
+  readFile(path: string, options?: ReadOptions): Promise<string | Buffer>
+
+  /**
    * Write content to file
    * @param path - Relative path to file
    * @param content - Content to write
    */
   write(path: string, content: string | Buffer): Promise<void>
+
+  /**
+   * Write content to file (alias for write, matches Node fs.promises API)
+   * @param path - Relative path to file
+   * @param content - Content to write
+   */
+  writeFile(path: string, content: string | Buffer): Promise<void>
+
+  /**
+   * Rename or move a file/directory (matches Node fs.promises API)
+   * @param oldPath - Current path
+   * @param newPath - New path
+   */
+  rename(oldPath: string, newPath: string): Promise<void>
+
+  /**
+   * Delete files and directories (matches Node fs.promises API)
+   * @param path - Path to delete
+   * @param options - Options including recursive and force flags
+   */
+  rm(path: string, options?: { recursive?: boolean, force?: boolean }): Promise<void>
 
   /**
    * List directory contents

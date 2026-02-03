@@ -15,7 +15,10 @@ export async function GET(req: NextRequest) {
 
   try {
     const backend = await backendManager.getBackend()
-    const content = await backend.readFile(path)
+    const rawContent = await backend.readFile(path)
+
+    // Convert Buffer to string if needed
+    const content = Buffer.isBuffer(rawContent) ? rawContent.toString('utf-8') : rawContent
 
     // Get file size
     const stat = await backend.stat(path)

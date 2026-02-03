@@ -443,6 +443,87 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
   }
 
   /**
+   * Read file contents (alias for read, matches Node fs.promises API)
+   */
+  async readFile(relativePath: string, options?: ReadOptions): Promise<string | Buffer> {
+    return this.read(relativePath, options)
+  }
+
+  /**
+   * Write content to file (alias for write, matches Node fs.promises API)
+   */
+  async writeFile(relativePath: string, content: string | Buffer): Promise<void> {
+    return this.write(relativePath, content)
+  }
+
+  /**
+   * Rename or move a file/directory (matches Node fs.promises API)
+   */
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    const fullOldPath = this.resolvePath(oldPath)
+    const fullNewPath = this.resolvePath(newPath)
+
+    // Ensure parent directory exists
+    const parentDir = path.posix.dirname(fullNewPath)
+    await this.mkdir(path.posix.relative(this.rootDir, parentDir), { recursive: true })
+
+    const sftp = await this.getSFTPSession()
+
+    return this.withChannelLimit(() => new Promise((resolve, reject) => {
+      let completed = false
+      const untrack = this.trackOperation(`rename: ${oldPath} -> ${newPath}`, reject)
+
+      const complete = () => {
+        if (!completed) {
+          completed = true
+          clearTimeout(timeout)
+          untrack()
+        }
+      }
+
+      const timeout = setTimeout(() => {
+        if (!completed) {
+          complete()
+          getLogger().error(`[SFTP] rename timed out after ${this.operationTimeoutMs}ms: ${oldPath} -> ${newPath}`)
+          reject(new BackendError(
+            `rename timed out after ${this.operationTimeoutMs}ms`,
+            ERROR_CODES.WRITE_FAILED
+          ))
+        }
+      }, this.operationTimeoutMs)
+
+      sftp.rename(fullOldPath, fullNewPath, (err) => {
+        if (completed) return
+        complete()
+        if (err) {
+          reject(new BackendError(
+            `Failed to rename: ${oldPath} -> ${newPath}`,
+            ERROR_CODES.WRITE_FAILED,
+            'rename'
+          ))
+        } else {
+          resolve()
+        }
+      })
+    }))
+  }
+
+  /**
+   * Delete files and directories (matches Node fs.promises API)
+   */
+  async rm(relativePath: string, options?: { recursive?: boolean, force?: boolean }): Promise<void> {
+    const fullPath = this.resolvePath(relativePath)
+
+    // Build rm command with flags
+    const flags: string[] = []
+    if (options?.recursive) flags.push('-r')
+    if (options?.force) flags.push('-f')
+
+    const flagsStr = flags.length > 0 ? ` ${flags.join(' ')}` : ''
+    await this.exec(`rm${flagsStr} "${fullPath}"`)
+  }
+
+  /**
    * List directory contents
    */
   async readdir(relativePath: string): Promise<string[]> {

@@ -69,6 +69,39 @@ export class ScopedMemoryBackend<T extends FileBasedBackend = FileBasedBackend> 
   }
 
   /**
+   * Read value from scoped key (alias for read, matches Node fs.promises API)
+   */
+  async readFile(key: string, options?: ReadOptions): Promise<string | Buffer> {
+    return this.read(key, options)
+  }
+
+  /**
+   * Write value to scoped key (alias for write, matches Node fs.promises API)
+   */
+  async writeFile(key: string, value: string | Buffer): Promise<void> {
+    return this.write(key, value)
+  }
+
+  /**
+   * Rename or move a key in scope (matches Node fs.promises API)
+   */
+  async rename(oldKey: string, newKey: string): Promise<void> {
+    const scopedOldKey = this.scopeKey(oldKey)
+    const scopedNewKey = this.scopeKey(newKey)
+    this.logOperation('rename', { oldKey: scopedOldKey, newKey: scopedNewKey })
+    return this.parent.rename(scopedOldKey, scopedNewKey)
+  }
+
+  /**
+   * Delete key in scope (matches Node fs.promises API)
+   */
+  async rm(key: string, options?: { recursive?: boolean, force?: boolean }): Promise<void> {
+    const scopedKey = this.scopeKey(key)
+    this.logOperation('rm', { key: scopedKey, options })
+    return this.parent.rm(scopedKey, options)
+  }
+
+  /**
    * List keys in scoped directory
    */
   async readdir(prefix: string): Promise<string[]> {

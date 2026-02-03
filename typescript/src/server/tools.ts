@@ -542,9 +542,9 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
         await backend.mkdir(destDir, { recursive: true })
       }
 
-      // Use exec for the actual move - path validation is handled by workspace
+      // Use rename API (matches Node fs.promises)
       // The backend.exists() calls above already validate the paths are within bounds
-      await backend.exec(`mv "${source}" "${destination}"`)
+      await backend.rename(source, destination)
       return {
         content: [{ type: 'text', text: `Moved ${source} to ${destination}` }]
       }

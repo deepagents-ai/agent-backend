@@ -82,6 +82,75 @@ export class MemoryBackend implements FileBasedBackend {
   }
 
   /**
+   * Read value by key (alias for read, matches Node fs.promises API)
+   */
+  async readFile(key: string, options?: ReadOptions): Promise<string | Buffer> {
+    return this.read(key, options)
+  }
+
+  /**
+   * Write value by key (alias for write, matches Node fs.promises API)
+   */
+  async writeFile(key: string, value: string | Buffer): Promise<void> {
+    return this.write(key, value)
+  }
+
+  /**
+   * Rename or move a key (matches Node fs.promises API)
+   */
+  async rename(oldKey: string, newKey: string): Promise<void> {
+    const value = this.store.get(oldKey)
+    if (value === undefined) {
+      throw new BackendError(`Key not found: ${oldKey}`, 'KEY_NOT_FOUND', 'rename')
+    }
+
+    this.store.set(newKey, value)
+    this.store.delete(oldKey)
+  }
+
+  /**
+   * Delete key (matches Node fs.promises API)
+   * For memory backend, recursive option deletes all keys with matching prefix
+   */
+  async rm(key: string, options?: { recursive?: boolean, force?: boolean }): Promise<void> {
+    if (options?.recursive) {
+      // Delete all keys with this prefix
+      const keysToDelete: string[] = []
+      const prefix = key.endsWith('/') ? key : `${key}/`
+
+      // Delete exact key if exists
+      if (this.store.has(key)) {
+        keysToDelete.push(key)
+      }
+
+      // Delete all keys with prefix
+      for (const k of this.store.keys()) {
+        if (k.startsWith(prefix)) {
+          keysToDelete.push(k)
+        }
+      }
+
+      for (const k of keysToDelete) {
+        this.store.delete(k)
+      }
+
+      // If force is false and nothing was deleted, throw error
+      if (!options?.force && keysToDelete.length === 0) {
+        throw new BackendError(`Key not found: ${key}`, 'KEY_NOT_FOUND', 'rm')
+      }
+    } else {
+      // Non-recursive: only delete exact key
+      if (!this.store.has(key)) {
+        if (!options?.force) {
+          throw new BackendError(`Key not found: ${key}`, 'KEY_NOT_FOUND', 'rm')
+        }
+      } else {
+        this.store.delete(key)
+      }
+    }
+  }
+
+  /**
    * List all keys matching prefix
    * Returns immediate children only (not nested)
    */

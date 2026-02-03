@@ -104,6 +104,34 @@ export class ScopedFilesystemBackend<T extends FileBasedBackend = FileBasedBacke
   }
 
   /**
+   * Read file from scoped directory (alias for read, matches Node fs.promises API)
+   */
+  async readFile(relativePath: string, options?: ReadOptions): Promise<string | Buffer> {
+    return this.parent.readFile(this.toParentPath(relativePath), options)
+  }
+
+  /**
+   * Write content to file in scoped directory (alias for write, matches Node fs.promises API)
+   */
+  async writeFile(relativePath: string, content: string | Buffer): Promise<void> {
+    return this.parent.writeFile(this.toParentPath(relativePath), content)
+  }
+
+  /**
+   * Rename or move a file/directory in scoped directory (matches Node fs.promises API)
+   */
+  async rename(oldPath: string, newPath: string): Promise<void> {
+    return this.parent.rename(this.toParentPath(oldPath), this.toParentPath(newPath))
+  }
+
+  /**
+   * Delete files and directories in scoped directory (matches Node fs.promises API)
+   */
+  async rm(relativePath: string, options?: { recursive?: boolean, force?: boolean }): Promise<void> {
+    return this.parent.rm(this.toParentPath(relativePath), options)
+  }
+
+  /**
    * List directory contents in scoped directory
    */
   async readdir(relativePath: string): Promise<string[]> {
