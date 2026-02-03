@@ -287,18 +287,15 @@ npm install -g remote
 
 ### Start MCP Server
 
-Start backend-specific MCP servers:
+Start MCP server:
 
 ```bash
-# Local filesystem server
-agent-backend --backend local --rootDir /tmp/workspace --isolation bwrap
+# Basic configuration, no auth
+agent-backend --rootDir /tmp/workspace
 
-# Remote filesystem server (connects to SSH host)
-agent-backend --backend remote --rootDir /var/workspace \
+# SSH + MCP Auth
+agent-backend --rootDir /var/workspace \
   --host server.example.com --username agent --password secret
-
-# Memory backend server (no exec tool)
-agent-backend --backend memory --rootDir /memory
 ```
 
 ### Docker Remote Backend
@@ -510,6 +507,12 @@ make typecheck      # Type check everything
 make ci             # Full CI pipeline
 ```
 
+**Link CLI for development:**
+```bash
+cd typescript && pnpm link --global
+```
+This makes the `agent-backend` CLI available system-wide and keeps it synced with your dev changes.
+
 ### Development Mode
 
 Start all dev processes with unified TUI:
@@ -596,7 +599,7 @@ docker run --rm -it \
   -p 3001:3001 -p 2222:22 \
   -v "$(pwd)/tmp/remote-workspace:/workspace" \
   agent-backend:latest \
-  agent-backend --backend local --rootDir /workspace --http-port 3001
+  agent-backend --rootDir /workspace
 
 # Test: ssh -p 2222 root@localhost (password: agents)
 # Test: curl http://localhost:3001/health

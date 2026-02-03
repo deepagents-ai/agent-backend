@@ -127,7 +127,7 @@ dev: ## Start all dev processes with interactive TUI (local mode)
 	}
 	mprocs
 
-dev-remote: ## Start dev with Docker-based remote backend simulation
+dev-remote: ## Start dev with Docker-based daemon simulation
 	@command -v mprocs >/dev/null 2>&1 || { \
 		echo "Error: mprocs not installed. Run 'make install' first."; \
 		exit 1; \
@@ -139,11 +139,11 @@ dev-remote: ## Start dev with Docker-based remote backend simulation
 	}
 	@echo "Creating remote workspace directory..."
 	@mkdir -p tmp/remote-workspace
-	@if ! docker images | grep -q "agent-backend.*latest"; then \
-		echo "Docker image not found. Building agent-backend:latest..."; \
+	@if ! docker images | grep -q "agentbe-daemon.*latest"; then \
+		echo "Docker image not found. Building agentbe-daemon:latest..."; \
 		$(MAKE) docker-build; \
 	fi
-	@echo "Starting remote backend testing mode..."
+	@echo "Starting backend daemon testing mode..."
 	mprocs -c mprocs.remote.yaml
 
 clean: ## Clean build artifacts and dependencies
@@ -162,17 +162,17 @@ clean: ## Clean build artifacts and dependencies
 
 ##@ Docker
 
-docker-build: ## Build Docker image for remote backend testing
-	@echo "Building agent-backend Docker image..."
+docker-build: ## Build Docker image for daemon testing
+	@echo "Building agentbe-daemon Docker image..."
 	@cd typescript/deploy/docker && \
-		docker build -f Dockerfile.runtime -t agent-backend:latest ../../..
+		docker build -f Dockerfile.runtime -t agentbe-daemon:latest ../../..
 
-docker-clean: ## Remove agent-backend Docker images and containers
+docker-clean: ## Remove agentbe-daemon Docker images and containers
 	@echo "Stopping and removing containers..."
-	@docker stop agent-backend-remote 2>/dev/null || true
-	@docker rm agent-backend-remote 2>/dev/null || true
+	@docker stop agentbe-daemon 2>/dev/null || true
+	@docker rm agentbe-daemon 2>/dev/null || true
 	@echo "Removing images..."
-	@docker rmi agent-backend:latest 2>/dev/null || true
+	@docker rmi agentbe-daemon:latest 2>/dev/null || true
 
 ##@ Publishing & Deployment
 

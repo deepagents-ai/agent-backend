@@ -1,7 +1,7 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { execSync, spawn } from 'child_process'
 import type { Stats } from 'fs'
-import { access, mkdir as fsMkdir, readdir, readFile, rename as fsRename, rm as fsRm, stat, writeFile } from 'fs/promises'
+import { access, mkdir as fsMkdir, rename as fsRename, rm as fsRm, readdir, readFile, stat, writeFile } from 'fs/promises'
 import * as path from 'path'
 import { ERROR_CODES } from '../constants.js'
 import { isCommandSafe, isDangerous } from '../safety.js'
@@ -16,13 +16,6 @@ import { BackendType } from './types.js'
 
 /**
  * Local filesystem backend implementation
- *
- * CLIENT-SIDE ONLY: This backend is used by clients for direct local filesystem access.
- * agentbed (the daemon) does NOT use this class - it creates one internally but the daemon
- * itself is just an MCP server with filesystem tools.
- *
- * The Backend abstractions (LocalFilesystemBackend, RemoteFilesystemBackend, MemoryBackend)
- * are purely client-side concepts. The daemon is just an MCP server with filesystem tools.
  *
  * Executes commands and file operations on the local machine using Node.js APIs
  */
@@ -595,8 +588,9 @@ export class LocalFilesystemBackend implements FileBasedBackend {
 
     // Build command args
     const args = [
-      '--backend', 'local',
+      'daemon',
       '--rootDir', scopePath || this.rootDir,
+      '--local-only',
     ]
 
     if (this.isolation) {
@@ -623,8 +617,33 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       }
     )
 
-    await client.connect(transport)
-    return client
+    try {
+      await client.connect(transport)
+      return client
+    } catch (error: any) {
+      // Provide helpful error messages for common issues
+      const errorMessage = error?.message || String(error)
+
+      if (errorMessage.includes('ENOENT') || errorMessage.includes('not found') || errorMessage.includes('command not found')) {
+        throw new BackendError(
+          'Failed to spawn agent-backend CLI: command not found in PATH.\n\n' +
+          'To fix this, run from the typescript directory:\n' +
+          '  pnpm link --global\n\n' +
+          'Or install the package globally:\n' +
+          '  pnpm install -g agent-backend',
+          ERROR_CODES.INVALID_CONFIGURATION,
+          'agent-backend-cli-missing'
+        )
+      }
+
+      // Re-throw with additional context
+      throw new BackendError(
+        `Failed to connect to MCP server: ${errorMessage}\n\n` +
+        'Command: agent-backend ' + args.join(' '),
+        ERROR_CODES.INVALID_CONFIGURATION,
+        'mcp-connection-failed'
+      )
+    }
   }
 
   /**

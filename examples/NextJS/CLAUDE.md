@@ -89,7 +89,7 @@ return result.toUIMessageStreamResponse()
 ```
 NextJS App → LocalFilesystemBackend
   └── getMCPClient() spawns: agent-backend --rootDir /tmp/workspace (stdio)
-      └── agentbed serves local filesystem via stdio MCP
+      └── agentbe-daemon serves local filesystem via stdio MCP
 ```
 
 #### Remote Backend (Production)
@@ -98,11 +98,11 @@ NextJS App → RemoteFilesystemBackend
   ├── SSH client → Remote:2222 (sshd)
   │   └── Direct filesystem operations (exec, read, write)
   └── MCP client → Remote:3001 (HTTP)
-      └── agentbed serves /workspace via HTTP MCP
+      └── agentbe-daemon serves /workspace via HTTP MCP
 
 Remote machine runs TWO daemons:
   1. sshd (SSH daemon) - port 2222
-  2. agentbed (agent backend daemon) - port 3001
+  2. agentbe-daemon (agent backend daemon) - port 3001
      Command: agent-backend --rootDir /workspace --mcp-port 3001 --mcp-auth-token <token>
 
 Both access the SAME filesystem (/workspace).

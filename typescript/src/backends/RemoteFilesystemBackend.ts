@@ -1,9 +1,9 @@
+import type { Client as MCPClient } from '@modelcontextprotocol/sdk/client/index.js'
 import type { Stats } from 'fs'
 import { clearTimeout, setTimeout } from 'node:timers'
 import * as path from 'path'
 import type { ConnectConfig, SFTPWrapper } from 'ssh2'
 import { Client as SSH2Client } from 'ssh2'
-import type { Client as MCPClient } from '@modelcontextprotocol/sdk/client/index.js'
 import { ERROR_CODES } from '../constants.js'
 import { isCommandSafe, isDangerous } from '../safety.js'
 import { BackendError, DangerousOperationError } from '../types.js'
@@ -46,16 +46,16 @@ interface QueuedOperation<T> {
 /**
  * Remote filesystem backend implementation using SSH + HTTP MCP
  *
- * CLIENT-SIDE ONLY: This backend is used by clients to connect to a remote agentbed.
- * agentbed (the daemon) does NOT use this - it's just an MCP server with filesystem tools.
+ * CLIENT-SIDE ONLY: This backend is used by clients to connect to a remote agentbe-daemon.
+ * agentbe-daemon (the daemon) does NOT use this - it's just an MCP server with filesystem tools.
  *
  * Architecture:
  * - Machine A (Client): Creates RemoteFilesystemBackend instance
- * - Machine B (agentbed): Runs `agent-backend --rootDir /workspace --mcp-port 3001`
+ * - Machine B (agentbe-daemon): Runs `agent-backend daemon --rootDir /agentbe`
  *
  * The client connects to Machine B via TWO channels:
  * 1. SSH client → sshd on Machine B (for direct exec, read, write, etc.)
- * 2. MCP client (HTTP) → agentbed on Machine B (for MCP tool execution)
+ * 2. MCP client (HTTP) → agentbe-daemon on Machine B (for MCP tool execution)
  *
  * Both connections target the same machine and filesystem.
  *
@@ -750,7 +750,7 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
         'RemoteFilesystemBackend requires host to be configured. ' +
         'The MCP server must run on the remote host and be accessible via HTTP. ' +
         'Start the MCP server on the remote host with: ' +
-        `agent-backend --backend local --rootDir ${this.rootDir} --http-port 3001`,
+        `agent-backend daemon --rootDir ${this.rootDir}`,
         ERROR_CODES.INVALID_CONFIGURATION,
         'host'
       )

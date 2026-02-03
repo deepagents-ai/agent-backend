@@ -1,137 +1,49 @@
 #!/bin/bash
 
 # AgentBackend Remote Backend Entrypoint
-# Configures and starts SSH server and MCP server for filesystem access
+# Starts agentbe-daemon with integrated MCP + SSH management
 
 set -e
 
 echo "🌟 Starting AgentBackend Remote Backend..."
 
-# Storage configuration
-STORAGE_TYPE="${STORAGE_TYPE:-local}"
-
-# MCP server configuration
+# Read environment variables with defaults
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
 MCP_PORT="${MCP_PORT:-3001}"
 MCP_AUTH_TOKEN="${MCP_AUTH_TOKEN:-}"
+SSH_USERS="${SSH_USERS:-root:agents}"
 
-# Configure SSH users from environment
-MCP_USER="root"
-if [ -n "$SSH_USERS" ]; then
-  echo "👤 Configuring SSH users..."
-  IFS=',' read -ra USERS <<< "$SSH_USERS"
-  for user_config in "${USERS[@]}"; do
-    IFS=':' read -ra USER <<< "$user_config"
-    username="${USER[0]}"
-    password="${USER[1]}"
-
-    echo "   Creating user: $username"
-    useradd -m -s /bin/bash "$username" 2>/dev/null || echo "   User $username already exists"
-    echo "$username:$password" | chpasswd
-
-    # Add user to sudo group for admin operations
-    usermod -aG sudo "$username"
-
-    # Create user workspace
-    mkdir -p "/workspace/$username"
-    chown "$username:$username" "/workspace/$username"
-    chmod 755 "/workspace/$username"
-
-    # Set up SSH directory for user (for optional pubkey auth)
-    mkdir -p "/home/$username/.ssh"
-    touch "/home/$username/.ssh/authorized_keys"
-    chown -R "$username:$username" "/home/$username/.ssh"
-    chmod 700 "/home/$username/.ssh"
-    chmod 600 "/home/$username/.ssh/authorized_keys"
-
-    # Use first user for MCP server
-    if [ "$MCP_USER" = "root" ]; then
-      MCP_USER="$username"
-    fi
-  done
-fi
-
-# Ensure password authentication is enabled (fix for some base images)
-sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/^#PasswordAuthentication yes/PasswordAuthentication yes/' /etc/ssh/sshd_config
-sed -i 's/^ChallengeResponseAuthentication no/ChallengeResponseAuthentication yes/' /etc/ssh/sshd_config
-echo "PasswordAuthentication yes" >> /etc/ssh/sshd_config.d/password.conf 2>/dev/null || true
-
-# Add SSH keys if provided
-if [ -n "$SSH_PUBLIC_KEY" ]; then
-  echo "🔑 Adding SSH public key..."
-  echo "$SSH_PUBLIC_KEY" >> /root/.ssh/authorized_keys
-  chmod 600 /root/.ssh/authorized_keys
-fi
-
-# Mount SSH keys from volume if available
-if [ -f /keys/id_rsa.pub ]; then
-  echo "🔑 Adding mounted SSH key..."
-  cat /keys/id_rsa.pub >> /root/.ssh/authorized_keys
-  chmod 600 /root/.ssh/authorized_keys
-fi
-
-# Set workspace root from environment
-WORKSPACE_ROOT="${WORKSPACE_ROOT:-/workspace}"
-echo "📁 Setting workspace root to: $WORKSPACE_ROOT"
+# Create workspace directory
 mkdir -p "$WORKSPACE_ROOT"
 chmod 755 "$WORKSPACE_ROOT"
 
-# Set ownership of workspace root based on MCP user
-if [ "$MCP_USER" != "root" ]; then
-  chown "$MCP_USER:$MCP_USER" "$WORKSPACE_ROOT"
-fi
-
-# Create default workspace structure
-mkdir -p /workspace/projects /workspace/temp /workspace/shared
-chmod -R 755 /workspace
-
-# Set ownership based on MCP user
-if [ "$MCP_USER" != "root" ]; then
-  chown -R "$MCP_USER:$MCP_USER" /workspace
-else
-  chown -R root:root /workspace
-fi
-
-# Enable logging if requested
-if [ "$ENABLE_LOGGING" = "true" ]; then
-  echo "📝 Enabling SSH logging..."
-  sed -i 's/#LogLevel INFO/LogLevel VERBOSE/' /etc/ssh/sshd_config
-fi
-
-# Start agentbed (agent backend daemon)
-echo "🔌 Starting agentbed on port $MCP_PORT..."
-
-# Start agentbed in background
-if [ "$MCP_USER" != "root" ]; then
-  su - "$MCP_USER" -c "agent-backend \
-    --rootDir \"$WORKSPACE_ROOT\" \
-    --mcp-port $MCP_PORT \
-    --mcp-auth-token \"$MCP_AUTH_TOKEN\"" &
-else
-  agent-backend \
-    --rootDir "$WORKSPACE_ROOT" \
-    --mcp-port "$MCP_PORT" \
-    --mcp-auth-token "$MCP_AUTH_TOKEN" &
-fi
-
-MCP_PID=$!
-echo "   agentbed started (PID: $MCP_PID)"
-
-echo ""
-echo "✅ AgentBackend Remote Backend is ready!"
-echo "📡 Connection details:"
-echo "   SSH Port: 22"
-echo "   MCP Port: $MCP_PORT"
-echo "   Default user: root"
-echo "   Default password: agents"
+echo "🚀 Starting agentbe-daemon (MCP + SSH)..."
 echo "   Workspace: $WORKSPACE_ROOT"
-echo ""
-echo "🔧 Test connection:"
-echo "   ssh root@localhost -p <mapped-port>"
-echo "   curl http://localhost:$MCP_PORT/health"
-echo ""
-echo "🚀 Starting SSH daemon..."
+echo "   MCP Port: $MCP_PORT"
+echo "   SSH Users: $SSH_USERS"
 echo ""
 
-# Execute the main command (SSH daemon)
-exec "$@"
+# Build command arguments
+DAEMON_ARGS=(
+  --rootDir "$WORKSPACE_ROOT"
+  --mcp-port "$MCP_PORT"
+  --ssh-users "$SSH_USERS"
+)
+
+# Add auth token if provided
+if [ -n "$MCP_AUTH_TOKEN" ]; then
+  DAEMON_ARGS+=(--mcp-auth-token "$MCP_AUTH_TOKEN")
+fi
+
+# Add SSH public key if provided
+if [ -n "$SSH_PUBLIC_KEY" ]; then
+  DAEMON_ARGS+=(--ssh-public-key "$SSH_PUBLIC_KEY")
+fi
+
+# Add SSH authorized_keys file if mounted
+if [ -f /keys/authorized_keys ]; then
+  DAEMON_ARGS+=(--ssh-authorized-keys /keys/authorized_keys)
+fi
+
+# Run unified daemon (handles all user setup + starts both services)
+exec agent-backend daemon "${DAEMON_ARGS[@]}"

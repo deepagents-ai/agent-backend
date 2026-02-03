@@ -21,14 +21,17 @@ pnpm test --run      # Run tests once
 pnpm test            # Run tests in watch mode
 ```
 
-### Running agentbed
+### Running agentbe-daemon
 
 ```bash
-# Start agentbed for local development (stdio mode)
-pnpm run build && node bin/agent-backend.js --rootDir /tmp/workspace
+# Local-only mode (works on macOS/Windows, no SSH)
+pnpm run build && node bin/agent-backend.js daemon --rootDir /tmp/workspace --local-only
 
-# Start agentbed for remote deployment (HTTP mode)
-agent-backend --rootDir /workspace --mcp-port 3001 --mcp-auth-token <token>
+# Local-only mode with custom port
+agent-backend daemon --rootDir /tmp/workspace --local-only --mcp-port 3456
+
+# Full daemon mode (Linux only, requires root)
+agent-backend daemon --rootDir /workspace --mcp-auth-token <token>
 ```
 
 ### Package Info
@@ -79,17 +82,17 @@ tests/unit/                     # Unit tests (Vitest)
 
 ## Terminology
 
-**agentbed (Agent Backend Daemon)**:
+**agentbe-daemon (Agent Backend Daemon)**:
 - The `agent-backend` CLI process running as a daemon
 - Serves a local filesystem remotely via MCP over HTTP
 - Always serves its LOCAL filesystem (it's "remote" from client's perspective)
-- Example: `agent-backend --rootDir /workspace --mcp-port 3001`
+- Example: `agent-backend daemon --rootDir /tmp/agentbe-workspace`
 
 **Backend (Client-Side Interface)**:
 - `LocalFilesystemBackend` - Direct local filesystem access
   - Client-side only, no daemon needed
   - For local development
-- `RemoteFilesystemBackend` - Connects to remote agentbed
+- `RemoteFilesystemBackend` - Connects to remote agentbe-daemon
   - Uses SSH for direct ops + HTTP for MCP tools
   - For production deployments
 - `MemoryBackend` - In-memory key/value storage
@@ -97,9 +100,8 @@ tests/unit/                     # Unit tests (Vitest)
   - For testing
 
 **Key Points**:
-- agentbed always serves LOCAL filesystem (no backend type flag)
 - MemoryBackend never needs a daemon (client-side only)
-- RemoteFilesystemBackend connects TO agentbed (client → daemon)
+- RemoteFilesystemBackend connects TO agentbe-daemon (client → daemon)
 
 ## Architecture
 

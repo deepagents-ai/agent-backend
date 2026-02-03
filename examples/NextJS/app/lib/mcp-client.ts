@@ -11,7 +11,7 @@ import { backendManager } from './backend'
  * For remote backends:
  * - Connects to HTTP MCP server on remote host
  * - Uses host and mcpPort from config (mcpServerHostOverride if specified)
- * - MCP server must be started on remote: agent-backend --http-port 3001
+ * - MCP server must be started on remote: agent-backend daemon --rootDir /agentbe
  */
 export async function createMCPClient() {
   // Get the backend (Local or Remote based on env)

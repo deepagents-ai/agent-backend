@@ -1,8 +1,8 @@
 # mprocs configuration for remote backend testing with Docker
 # Usage: mprocs -c mprocs.remote.yaml (or make dev-remote)
 #
-# This simulates a remote backend deployment locally using Docker.
-# The Docker container runs the agent-backend MCP server, and NextJS
+# This simulates the agentbe daemon locally using Docker.
+# The Docker container runs the agentbe-daemon MCP server, and NextJS
 # connects to it as if it were a remote host.
 
 procs:
@@ -13,30 +13,29 @@ procs:
     env:
       FORCE_COLOR: "1"
 
-  # Docker container running agent-backend MCP server
+  # Docker container running agentbe-daemon MCP server
   # Simulates a remote host with direct filesystem access
-  remote-mcp-server:
+  agentbe-daemon:
     shell: |
       docker run --rm \
-        --name agent-backend-remote \
+        --name agentbe-daemon \
         -p 3001:3001 \
         -p 2222:22 \
         -v "$(pwd)/tmp/remote-workspace:/workspace" \
         -e MCP_PORT=3001 \
-        agent-backend:latest \
-        sh -c "agent-backend --backend local --rootDir /workspace --http-port 3001"
+        agentbe-daemon:latest \
+        sh -c "agent-backend daemon --rootDir /workspace"
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"
 
-  # NextJS dev server configured for remote backend
+  # NextJS dev server configured
   nextjs-remote-mode:
     cmd: ["pnpm", "run", "dev"]
     cwd: "examples/NextJS"
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"
-      # Configure for remote backend mode
       NEXT_PUBLIC_BACKEND_TYPE: "remote"
       REMOTE_MCP_URL: "http://localhost:3001"
       AGENTBE_WORKSPACE_ROOT: "/workspace"
@@ -54,7 +53,7 @@ procs:
 
   # Optional: Watch docker logs separately for debugging
   # docker-logs:
-  #   shell: "docker logs -f agent-backend-remote 2>&1"
+  #   shell: "docker logs -f agentbe-daemon 2>&1"
   #   stop:
   #     send_signal:
   #       signal: "SIGTERM"

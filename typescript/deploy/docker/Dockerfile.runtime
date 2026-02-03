@@ -98,7 +98,7 @@ RUN mkdir -p /root/.ssh && \
 RUN echo 'root:agents' | chpasswd
 
 # Copy startup script
-COPY remote/entrypoint.sh /entrypoint.sh
+COPY deploy/docker/entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
 # Set workspace permissions
@@ -108,10 +108,9 @@ RUN chmod 755 /workspace && \
 # Expose SSH port and MCP server port
 EXPOSE 22 3001
 
-# Health check to ensure SSH is running
+# Health check to ensure daemon is running
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD service ssh status || exit 1
+    CMD curl -f http://localhost:3001/health || exit 1
 
-# Start with custom entrypoint
+# Start with custom entrypoint (daemon command handles everything)
 ENTRYPOINT ["/entrypoint.sh"]
-CMD ["/usr/sbin/sshd", "-D"]

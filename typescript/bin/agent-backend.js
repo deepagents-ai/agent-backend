@@ -12,9 +12,10 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { execSync, spawn } from 'child_process'
+import express from 'express'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
-import express from 'express'
+import { LocalFilesystemBackend } from '../dist/index.js'
 import { AgentBackendMCPServer } from '../dist/server/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
@@ -31,6 +32,11 @@ async function main() {
   const command = args[0]
 
   // Check for subcommands
+  if (command === 'daemon') {
+    await handleDaemon(args.slice(1))
+    return
+  }
+
   if (command === 'start-remote') {
     await handleStartRemote(args.slice(1))
     return
@@ -46,8 +52,394 @@ async function main() {
     return
   }
 
-  // Default: start MCP server
-  await startMCPServer(args)
+  // Error: unknown command
+  console.error(`❌ Unknown command: ${command || '(none)'}`)
+  console.error('   Run "agent-backend help" for usage')
+  process.exit(1)
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Daemon Command (MCP + SSH)
+// ─────────────────────────────────────────────────────────────────
+
+async function handleDaemon(args) {
+  // Parse daemon-specific args
+  const config = parseDaemonArgs(args)
+
+  // Local-only mode (stdio MCP, no SSH, no HTTP)
+  if (config.localOnly) {
+    console.error('🌟 Starting agentbe-daemon (local stdio mode)...')
+    console.error(`📁 Workspace: ${config.rootDir}`)
+    console.error('')
+
+    try {
+      // Create backend
+      const backend = new LocalFilesystemBackend({
+        rootDir: config.rootDir,
+        isolation: config.isolation,
+        shell: config.shell
+      })
+
+      // Create MCP server
+      const mcpServer = new AgentBackendMCPServer(backend)
+
+      // Use stdio transport for local development
+      const transport = new StdioServerTransport()
+      await mcpServer.getServer().connect(transport)
+
+      // Server runs until stdin closes or process is killed
+      console.error('✅ MCP server running on stdio')
+      console.error('   (Use StdioClientTransport to connect)')
+      console.error('')
+
+    } catch (error) {
+      console.error(`❌ Failed to start MCP server: ${error.message}`)
+      if (error.stack) {
+        console.error(error.stack)
+      }
+      process.exit(1)
+    }
+    return
+  }
+
+  // Full daemon mode (MCP + SSH) - requires Linux
+  if (process.platform !== 'linux') {
+    console.error('❌ Error: Full daemon mode (with SSH) requires Linux')
+    console.error('   Options:')
+    console.error('   1. Use --local-only flag for local stdio mode')
+    console.error('   2. Use Docker: agent-backend start-remote')
+    process.exit(1)
+  }
+
+  // Check running as root for user creation
+  if (process.getuid() !== 0) {
+    console.error('⚠️  Warning: daemon mode requires root privileges for SSH user management')
+    console.error('   Run with sudo or as root user')
+  }
+
+  // Validate sshd is installed
+  const sshdPath = '/usr/sbin/sshd'
+  try {
+    execSync(`test -f ${sshdPath}`, { stdio: 'ignore' })
+  } catch {
+    console.error('❌ Error: SSH daemon not found at /usr/sbin/sshd')
+    console.error('   Install openssh-server: apt-get install openssh-server')
+    console.error('   Or use --local-only flag for local stdio mode')
+    process.exit(1)
+  }
+
+  console.error('🌟 Starting agentbe-daemon (MCP + SSH)...')
+  console.error(`📁 Workspace: ${config.rootDir}`)
+  console.error(`🔌 MCP Port: ${config.mcpPort}`)
+  console.error(`👥 SSH Users: ${config.sshUsers.map(u => u.username).join(', ')}`)
+
+  try {
+    // Set up SSH users
+    await setupSshUsers(config)
+
+    // Start HTTP MCP server
+    const httpServer = await startDaemonHttpServer(config)
+
+    // Start SSH daemon
+    const sshdProcess = startSshDaemon(config)
+
+    // Set up signal handlers for graceful shutdown
+    const shutdown = async () => {
+      console.error('')
+      console.error('🛑 Shutting down agentbe-daemon...')
+
+      // Close HTTP server
+      await new Promise(resolve => httpServer.close(resolve))
+      console.error('   ✓ MCP server stopped')
+
+      // Stop sshd
+      sshdProcess.kill('SIGTERM')
+      await new Promise(resolve => sshdProcess.on('exit', resolve))
+      console.error('   ✓ SSH daemon stopped')
+
+      process.exit(0)
+    }
+
+    process.on('SIGTERM', shutdown)
+    process.on('SIGINT', shutdown)
+
+    // Monitor sshd and exit if it crashes
+    sshdProcess.on('exit', (code, signal) => {
+      console.error(`❌ SSH daemon exited unexpectedly (code: ${code}, signal: ${signal})`)
+      console.error('   agentbe-daemon shutting down...')
+      httpServer.close(() => process.exit(1))
+    })
+
+    console.error('')
+    console.error('✅ agentbe-daemon is running')
+    console.error(`   SSH Port: 22`)
+    console.error(`   MCP Port: ${config.mcpPort}`)
+    console.error(`   MCP Health: http://localhost:${config.mcpPort}/health`)
+    console.error('')
+
+  } catch (error) {
+    console.error(`❌ Failed to start agentbe-daemon: ${error.message}`)
+    if (error.stack) {
+      console.error(error.stack)
+    }
+    process.exit(1)
+  }
+}
+
+function parseDaemonArgs(args) {
+  const config = {
+    mcpPort: 3001,
+    localOnly: false,
+    sshUsers: [{ username: 'root', password: 'agents' }],
+    sshPublicKey: null,
+    sshAuthorizedKeys: null
+  }
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i]
+    const next = args[i + 1]
+
+    switch (arg) {
+      case '--rootDir':
+        config.rootDir = next
+        i++
+        break
+
+      case '--isolation':
+        config.isolation = next
+        i++
+        break
+
+      case '--shell':
+        config.shell = next
+        i++
+        break
+
+      case '--mcp-port':
+        config.mcpPort = parseInt(next, 10)
+        i++
+        break
+
+      case '--mcp-auth-token':
+        config.mcpAuthToken = next
+        i++
+        break
+
+      case '--local-only':
+        config.localOnly = true
+        break
+
+      case '--ssh-users':
+        // Parse user:pass,user:pass format
+        config.sshUsers = next.split(',').map(pair => {
+          const [username, password] = pair.split(':')
+          if (!username || !password) {
+            throw new Error(`Invalid --ssh-users format: ${pair}. Expected user:pass`)
+          }
+          return { username: username.trim(), password: password.trim() }
+        })
+        i++
+        break
+
+      case '--ssh-public-key':
+        config.sshPublicKey = next
+        i++
+        break
+
+      case '--ssh-authorized-keys':
+        config.sshAuthorizedKeys = next
+        i++
+        break
+
+      default:
+        if (arg.startsWith('--')) {
+          console.error(`❌ Error: unrecognized option: ${arg}`)
+          console.error('   Run "agent-backend help" to see available options')
+          process.exit(1)
+        }
+    }
+  }
+
+  // Validation
+  if (!config.rootDir) {
+    console.error('❌ Error: --rootDir is required')
+    console.error('   Run "agent-backend help" for usage')
+    process.exit(1)
+  }
+
+  if (config.mcpPort < 1024 || config.mcpPort > 65535) {
+    console.error('❌ Error: --mcp-port must be between 1024-65535')
+    process.exit(1)
+  }
+
+  if (config.isolation && !['auto', 'bwrap', 'software', 'none'].includes(config.isolation)) {
+    console.error(`❌ Error: Invalid isolation mode "${config.isolation}"`)
+    console.error('   Valid modes: auto, bwrap, software, none')
+    process.exit(1)
+  }
+
+  if (config.shell && !['bash', 'sh', 'auto'].includes(config.shell)) {
+    console.error(`❌ Error: Invalid shell "${config.shell}"`)
+    console.error('   Valid shells: bash, sh, auto')
+    process.exit(1)
+  }
+
+  return config
+}
+
+async function setupSshUsers(config) {
+  console.error('👤 Setting up SSH users...')
+
+  for (const user of config.sshUsers) {
+    const { username, password } = user
+
+    // Create user with home directory
+    try {
+      execSync(`useradd -m -s /bin/bash ${username}`, { stdio: 'pipe' })
+      console.error(`   ✓ Created user: ${username}`)
+    } catch (error) {
+      // User might already exist
+      console.error(`   - User ${username} already exists`)
+    }
+
+    // Set password
+    try {
+      execSync(`echo "${username}:${password}" | chpasswd`, { stdio: 'pipe' })
+      console.error(`   ✓ Set password for ${username}`)
+    } catch (error) {
+      console.error(`   ✗ Failed to set password for ${username}: ${error.message}`)
+    }
+
+    // Create workspace directory for user
+    const userWorkspace = `${config.rootDir}/${username}`
+    try {
+      execSync(`mkdir -p "${userWorkspace}"`, { stdio: 'pipe' })
+      execSync(`chown ${username}:${username} "${userWorkspace}"`, { stdio: 'pipe' })
+      execSync(`chmod 755 "${userWorkspace}"`, { stdio: 'pipe' })
+      console.error(`   ✓ Created workspace: ${userWorkspace}`)
+    } catch (error) {
+      console.error(`   ✗ Failed to create workspace: ${error.message}`)
+    }
+
+    // Set up .ssh directory
+    const sshDir = username === 'root' ? '/root/.ssh' : `/home/${username}/.ssh`
+    try {
+      execSync(`mkdir -p "${sshDir}"`, { stdio: 'pipe' })
+      execSync(`touch "${sshDir}/authorized_keys"`, { stdio: 'pipe' })
+      execSync(`chown -R ${username}:${username} "${sshDir}"`, { stdio: 'pipe' })
+      execSync(`chmod 700 "${sshDir}"`, { stdio: 'pipe' })
+      execSync(`chmod 600 "${sshDir}/authorized_keys"`, { stdio: 'pipe' })
+    } catch (error) {
+      console.error(`   ✗ Failed to set up .ssh directory: ${error.message}`)
+    }
+  }
+
+  // Add SSH public key if provided (to first user)
+  if (config.sshPublicKey) {
+    const firstUser = config.sshUsers[0].username
+    const sshDir = firstUser === 'root' ? '/root/.ssh' : `/home/${firstUser}/.ssh`
+    try {
+      execSync(`echo "${config.sshPublicKey}" >> "${sshDir}/authorized_keys"`, { stdio: 'pipe' })
+      console.error(`   ✓ Added SSH public key for ${firstUser}`)
+    } catch (error) {
+      console.error(`   ✗ Failed to add SSH public key: ${error.message}`)
+    }
+  }
+
+  // Copy authorized_keys file if provided
+  if (config.sshAuthorizedKeys) {
+    const firstUser = config.sshUsers[0].username
+    const sshDir = firstUser === 'root' ? '/root/.ssh' : `/home/${firstUser}/.ssh`
+    try {
+      execSync(`cat "${config.sshAuthorizedKeys}" >> "${sshDir}/authorized_keys"`, { stdio: 'pipe' })
+      console.error(`   ✓ Copied authorized_keys for ${firstUser}`)
+    } catch (error) {
+      console.error(`   ✗ Failed to copy authorized_keys: ${error.message}`)
+    }
+  }
+
+  // Ensure password authentication is enabled
+  try {
+    execSync('mkdir -p /etc/ssh/sshd_config.d', { stdio: 'pipe' })
+    execSync('echo "PasswordAuthentication yes" > /etc/ssh/sshd_config.d/agentbe-password.conf', { stdio: 'pipe' })
+    console.error('   ✓ Enabled password authentication')
+  } catch (error) {
+    console.error(`   ✗ Failed to configure SSH: ${error.message}`)
+  }
+}
+
+async function startDaemonHttpServer(config) {
+  const app = express()
+
+  // Create backend
+  const backend = new LocalFilesystemBackend({
+    rootDir: config.rootDir,
+    isolation: config.isolation,
+    shell: config.shell,
+    preventDangerous: true
+  })
+
+  // Create MCP server
+  const mcpServer = new AgentBackendMCPServer(backend)
+
+  // Create transport and connect
+  const transport = new StreamableHTTPServerTransport()
+  await mcpServer.getServer().connect(transport)
+
+  // Health check endpoint
+  app.get('/health', (req, res) => {
+    res.json({
+      status: 'ok',
+      rootDir: config.rootDir
+    })
+  })
+
+  // MCP endpoint
+  app.post('/mcp', async (req, res) => {
+    // Validate auth token if configured
+    if (config.mcpAuthToken) {
+      const authHeader = req.headers.authorization
+      const expectedAuth = `Bearer ${config.mcpAuthToken}`
+
+      if (!authHeader || authHeader !== expectedAuth) {
+        res.status(401).json({
+          error: 'Unauthorized',
+          message: 'Invalid or missing authentication token'
+        })
+        return
+      }
+    }
+
+    await transport.handleRequest(req, res)
+  })
+
+  return await new Promise((resolve) => {
+    const server = app.listen(config.mcpPort, () => {
+      console.error('🔌 MCP server started')
+      console.error(`   Port: ${config.mcpPort}`)
+      console.error(`   Auth: ${config.mcpAuthToken ? 'enabled (token required)' : 'disabled (open access)'}`)
+      resolve(server)
+    })
+  })
+}
+
+function startSshDaemon(config) {
+  console.error('🚀 Starting SSH daemon...')
+
+  const sshdProcess = spawn('/usr/sbin/sshd', ['-D', '-e'], {
+    stdio: ['ignore', 'inherit', 'inherit']
+  })
+
+  sshdProcess.on('spawn', () => {
+    console.error('   ✓ SSH daemon started')
+  })
+
+  sshdProcess.on('error', (error) => {
+    console.error(`   ✗ Failed to start SSH daemon: ${error.message}`)
+    process.exit(1)
+  })
+
+  return sshdProcess
 }
 
 // ─────────────────────────────────────────────────────────────────
@@ -139,18 +531,21 @@ function parseArgs(args) {
 async function startMCPServer(args) {
   const config = parseArgs(args)
 
-  console.error(`🚀 Starting agentbed (agent backend daemon)...`)
+  console.error(`🚀 Starting agentbe-daemon (agent backend daemon)...`)
   console.error(`📁 Root directory: ${config.rootDir}`)
   console.error(`🔒 Isolation: ${config.isolation || 'auto'}`)
 
   try {
-    // Create MCP server directly with config (NO Backend abstraction!)
-    const mcpServer = new AgentBackendMCPServer({
+    // Create backend for the MCP server
+    const backend = new LocalFilesystemBackend({
       rootDir: config.rootDir,
       isolation: config.isolation,
       shell: config.shell,
       preventDangerous: true
     })
+
+    // Create MCP server
+    const mcpServer = new AgentBackendMCPServer(backend)
 
     // Choose transport mode based on config
     if (config.mcpPort) {
@@ -160,12 +555,12 @@ async function startMCPServer(args) {
       const transport = new StdioServerTransport()
       await mcpServer.getServer().connect(transport)
 
-      console.error(`✅ agentbed running on stdio`)
+      console.error(`✅ agentbe-daemon running on stdio`)
       console.error(`   Ready to receive MCP requests`)
     }
 
   } catch (error) {
-    console.error(`❌ Failed to start agentbed: ${error.message}`)
+    console.error(`❌ Failed to start agentbe-daemon: ${error.message}`)
     if (error.stack) {
       console.error(error.stack)
     }
@@ -212,7 +607,7 @@ async function startHttpServer(mcpServer, config) {
 
   await new Promise((resolve) => {
     app.listen(config.mcpPort, () => {
-      console.error(`✅ agentbed running on HTTP`)
+      console.error(`✅ agentbe-daemon running on HTTP`)
       console.error(`   Port: ${config.mcpPort}`)
       console.error(`   Auth: ${config.mcpAuthToken ? 'enabled (token required)' : 'disabled (open access)'}`)
       console.error(`   Health: http://localhost:${config.mcpPort}/health`)
@@ -404,73 +799,87 @@ function runCommand(command) {
 
 function printHelp() {
   console.log(`
-🚀 agentbed (agent-backend) - Agent Backend Daemon
-
-Serves a local filesystem remotely via MCP over HTTP.
-Runs alongside SSH daemon to provide both direct filesystem access (SSH)
-and MCP tool execution (HTTP).
+🚀 agent-backend - Agent Backend CLI
 
 USAGE:
-  agent-backend [COMMAND] [OPTIONS]
+  agent-backend <command> [options]
 
 COMMANDS:
-  (default)              Start agentbed (agent backend daemon)
-  start-remote [--build] Start Docker container with agentbed + SSH daemon
+  daemon                 Start agentbe-daemon (MCP + SSH server)
+  start-remote [--build] Start Docker container with daemon
   stop-remote            Stop Docker container
   help                   Show this help message
 
-DAEMON OPTIONS (default command):
+DAEMON COMMAND:
+  agent-backend daemon --rootDir <path> [OPTIONS]
 
-  Common Options:
-    --rootDir <path>       Root directory to serve (required)
+  Starts agentbe-daemon with MCP HTTP server (and optionally SSH daemon).
 
-  Daemon Options:
-    --mcp-port <port>      Run HTTP server on port (default: stdio mode)
-                           Port must be between 1024-65535
-    --mcp-auth-token <tok> Authentication token for HTTP endpoint
-                           Clients must send: Authorization: Bearer <token>
+  Two modes:
+  1. Local-only mode (--local-only): Stdio MCP server for local dev, works on any platform
+  2. Full mode: MCP + SSH, requires Linux and root privileges
 
-  Filesystem Options:
-    --isolation <mode>     Isolation mode: auto, bwrap, software, none (default: auto)
-    --shell <shell>        Shell to use: bash, sh, auto (default: auto)
+  Required Options:
+    --rootDir <path>       Root directory to serve
 
-REMOTE MANAGEMENT OPTIONS:
+  Optional - Mode:
+    --local-only           Run MCP server via stdio (no SSH, no HTTP). Works on any platform.
+                           Perfect for local development with LocalFilesystemBackend.
 
-  start-remote Options:
+  Optional - MCP Server:
+    --mcp-port <port>      HTTP server port (default: 3001)
+    --mcp-auth-token <tok> Bearer token for MCP endpoint authentication
+    --isolation <mode>     Command isolation: auto|bwrap|software|none (default: auto)
+    --shell <shell>        Shell to use: bash|sh|auto (default: auto)
+
+  Optional - SSH (full mode only):
+    --ssh-users <users>    Comma-separated user:password pairs (default: root:agents)
+                           Example: alice:pass123,bob:pass456
+    --ssh-public-key <key> SSH public key to add to authorized_keys
+    --ssh-authorized-keys <path>  Path to authorized_keys file to copy
+
+REMOTE MANAGEMENT:
+  agent-backend start-remote [--build]
+
+  Starts Docker container with agentbe-daemon + SSH.
+  Options:
     --build                Force rebuild the Docker image
 
-EXAMPLES:
-
-  # Start agentbed with stdio (for local development)
-  agent-backend --rootDir /tmp/workspace
-
-  # Start agentbed with HTTP (for remote deployment)
-  agent-backend --rootDir /workspace --mcp-port 3001
-
-  # Start agentbed with HTTP and authentication
-  agent-backend --rootDir /workspace --mcp-port 3001 \\
-    --mcp-auth-token my-secret-token
-
-  # Start with bubblewrap isolation (Linux only)
-  agent-backend --rootDir /workspace --mcp-port 3001 --isolation bwrap
-
-  # Start Docker container with agentbed + SSH daemon
-  agent-backend start-remote
-
-  # Stop Docker container
   agent-backend stop-remote
 
-  # Rebuild and restart Docker container
+  Stops Docker container.
+
+EXAMPLES:
+  # Local-only mode (stdio, works on any platform, no SSH)
+  agent-backend daemon --rootDir /tmp/workspace --local-only
+
+  # Note: --local-only uses stdio, so auth tokens don't apply
+  # For HTTP with auth, omit --local-only:
+  agent-backend daemon --rootDir /tmp/workspace \\
+    --mcp-auth-token secret123
+
+  # Full daemon with defaults (Linux only: root:agents, port 3001)
+  agent-backend daemon --rootDir /workspace
+
+  # Full daemon with custom users (Linux only)
+  agent-backend daemon --rootDir /workspace \\
+    --ssh-users "alice:secret,bob:password"
+
+  # Full daemon with pubkey auth (Linux only)
+  agent-backend daemon --rootDir /workspace \\
+    --ssh-public-key "ssh-rsa AAAAB3... user@host"
+
+  # Start Docker container (includes full daemon with SSH)
   agent-backend start-remote --build
 
 NOTES:
-  - Stdio transport is default (for local development via MCP client)
-  - HTTP transport is for remote deployments (--mcp-port)
-  - HTTP without --mcp-auth-token has NO authentication (open access)
-  - Use --mcp-auth-token to secure HTTP endpoints (required for production)
-  - The daemon serves its LOCAL filesystem - it's "remote" from the client's perspective
-  - Clients use RemoteFilesystemBackend to connect via SSH + HTTP MCP
-  - Docker deployment includes both SSH daemon and agentbed on same container
+  - Use --local-only for local development (stdio mode, works on any platform)
+  - Full daemon (with SSH) requires Linux and root privileges
+  - Default SSH user is root:agents (full mode only)
+  - MCP server runs on port 3001 by default
+  - Use --mcp-auth-token to secure MCP endpoints (recommended for production)
+  - LocalFilesystemBackend uses --local-only mode (stdio)
+  - RemoteFilesystemBackend uses full daemon mode (with SSH)
 `)
 }
 

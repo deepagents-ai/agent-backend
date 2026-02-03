@@ -147,12 +147,12 @@ NextJS App (localhost:3000)
 
 ### Remote Deployment
 
-To connect NextJS app to a remote agentbed:
+To connect NextJS app to a remote agentbe-daemon:
 
 **On Remote Machine** (e.g., Docker container):
 ```bash
-# Start agentbed (agent backend daemon)
-agent-backend --rootDir /workspace \
+# Start agentbe-daemon (agent backend daemon)
+agent-backend daemon --rootDir .agentbe-workspace/ \
   --mcp-port 3001 \
   --mcp-auth-token <token>
 
@@ -415,7 +415,7 @@ curl http://localhost:3001/health
 # Expected: {"status":"ok","backend":"local"}
 
 # If not running, start it
-agent-backend --backend local --rootDir /workspace --http-port 3001
+agent-backend daemon --rootDir /tmp/agentbe-workspace
 
 # Check if port is accessible from local machine
 curl http://remote-server.com:3001/health

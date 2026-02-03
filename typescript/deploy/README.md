@@ -1,12 +1,12 @@
-# agentbed - Agent Backend Daemon Deployment
+# agent-backend - Agent Backend Daemon Deployment
 
-Deploy agentbed (agent backend daemon) to a remote server using Docker.
+Deploy agentbe-daemon (agent backend daemon) to a remote server using Docker.
 
-agentbed serves a local filesystem remotely via MCP over HTTP.
+agentbe-daemon serves a local filesystem remotely via MCP over HTTP.
 
 The deployment provides:
 - SSH access for direct filesystem operations (via sshd)
-- HTTP MCP endpoint for tool execution (via agentbed)
+- HTTP MCP endpoint for tool execution (via agentbe-daemon)
 - Isolated workspace environment
 
 ## Quick Start
@@ -49,6 +49,30 @@ docker run -d \
   --name agentbe-remote-backend \
   agentbe/remote-backend
 ```
+
+## Daemon Command
+
+The `agent-backend daemon` command runs both MCP and SSH services in a single process:
+
+```bash
+agent-backend daemon --rootDir <path> [OPTIONS]
+```
+
+**Required:**
+- `--rootDir <path>` - Root directory to serve
+
+**Optional - MCP Server:**
+- `--mcp-port <port>` - HTTP port (default: 3001)
+- `--mcp-auth-token <token>` - Bearer token for authentication
+- `--isolation <mode>` - Command isolation: auto|bwrap|software|none
+- `--shell <shell>` - Shell to use: bash|sh|auto
+
+**Optional - SSH:**
+- `--ssh-users <users>` - Comma-separated user:pass pairs (default: root:agents)
+- `--ssh-public-key <key>` - SSH public key for authorized_keys
+- `--ssh-authorized-keys <path>` - File with authorized keys
+
+**Note:** Daemon command requires Linux and root privileges.
 
 ## Configuration
 
@@ -124,22 +148,28 @@ The MCP server provides a standardized interface for AI applications to interact
 
 ## Deployment Architecture
 
-The daemon runs on a remote machine (typically in Docker) and serves
+The unified daemon runs on a remote machine (typically in Docker) and serves
 its local filesystem to remote clients.
 
 ```
 Machine A (Client):
   └── RemoteFilesystemBackend
-      ├── SSH → Machine B:2222 (direct filesystem ops via sshd)
-      └── MCP client → Machine B:3001 (tool execution via agentbed)
+      ├── SSH → Machine B:2222 (direct filesystem ops)
+      └── MCP client → Machine B:3001 (tool execution)
 
 Machine B (Docker Container):
-  ├── SSH daemon (sshd) - port 2222
-  └── agentbed - port 3001
-      └── Serves /workspace via MCP/HTTP
+  └── agentbe-daemon (unified process, PID 1)
+      ├── MCP HTTP Server - port 3001
+      │   └── Serves /workspace via MCP/HTTP
+      └── SSH Daemon - port 22
+          └── Direct filesystem access
 ```
 
-Both SSH and agentbed run on the **same machine**, accessing the **same filesystem**.
+**Key points:**
+- Single `agent-backend daemon` process manages both services
+- MCP and SSH access the **same filesystem** (/workspace)
+- Graceful shutdown of both services on container stop
+- Fail-fast if SSH daemon crashes
 
 ### Remote Backend Usage
 
@@ -285,10 +315,14 @@ docker exec agent-backend-remote chown -R root:root /workspace
 ### Log Analysis
 ```bash
 # Follow logs in real-time
-docker logs -f agent-backend-remote
+docker logs -f agentbe-remote-backend
 
-# Check SSH daemon status
-docker exec agent-backend-remote service ssh status
+# Check daemon process
+docker exec agentbe-remote-backend ps aux
+# Should show agent-backend as PID 1, sshd as child
+
+# Check MCP health
+curl http://localhost:3001/health
 ```
 
 ## Building and Publishing

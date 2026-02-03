@@ -1,7 +1,5 @@
 /**
  * In-memory key/value backend implementation
- *
- * CLIENT-SIDE ONLY: This backend never requires agentbed (the daemon).
  * All data is stored in the client's memory.
  *
  * Use cases:
@@ -12,22 +10,22 @@
  * Stores data in a Map, directories are implicit from key paths
  */
 
-import type { Stats } from 'fs'
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
+import type { Stats } from 'fs'
+import { BackendError, NotImplementedError } from '../types.js'
+import type {
+  ExecOptions,
+  MemoryBackendConfig,
+  ReadOptions,
+  ScopeConfig
+} from './config.js'
+import { validateMemoryBackendConfig } from './config.js'
+import { ScopedMemoryBackend } from './ScopedMemoryBackend.js'
 import type {
   FileBasedBackend,
   ScopedBackend
 } from './types.js'
-import type {
-  MemoryBackendConfig,
-  ScopeConfig,
-  ExecOptions,
-  ReadOptions
-} from './config.js'
 import { BackendType } from './types.js'
-import { validateMemoryBackendConfig } from './config.js'
-import { ScopedMemoryBackend } from './ScopedMemoryBackend.js'
-import { BackendError, NotImplementedError } from '../types.js'
 
 export class MemoryBackend implements FileBasedBackend {
   readonly type = BackendType.MEMORY
