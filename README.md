@@ -586,10 +586,9 @@ const scopedBackend: ScopedBackend<LocalFilesystemBackend> = backend.scope('proj
 
 ## Documentation
 
-- [API Reference](docs/api-reference.md)
-- [Configuration Options](docs/configuration.md)
+- [Architecture](docs/architecture.md)
 - [Security & Isolation](docs/security.md)
-- [MCP Integration](docs/mcp.md)
+- [Performance](docs/performance.md)
 
 ---
 
