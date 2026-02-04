@@ -10,6 +10,7 @@
 import { vi, beforeEach, afterEach } from 'vitest'
 import * as child_process from 'child_process'
 import * as fs from 'fs/promises'
+import * as fsSync from 'fs'
 
 // Track if we're in a unit test context
 let isUnitTest = true
@@ -76,6 +77,35 @@ vi.mock('fs/promises', () => {
     appendFile: vi.fn(() => throwUnmocked('appendFile')),
     chmod: vi.fn(() => throwUnmocked('chmod')),
     chown: vi.fn(() => throwUnmocked('chown'))
+  }
+})
+
+/**
+ * Global mock for fs (sync) to prevent ANY synchronous filesystem I/O
+ */
+vi.mock('fs', () => {
+  const throwUnmocked = (method: string) => {
+    throw new Error(
+      `❌ UNIT TEST VIOLATION: Unmocked fs.${method} (sync) call detected!\n` +
+      `This means a unit test is trying to perform real synchronous filesystem I/O.\n` +
+      `Fix: Ensure vi.mocked(fsSync.${method}).mockReturnValue(...) is called BEFORE the code executes.`
+    )
+  }
+
+  return {
+    mkdirSync: vi.fn(() => throwUnmocked('mkdirSync')),
+    readFileSync: vi.fn(() => throwUnmocked('readFileSync')),
+    writeFileSync: vi.fn(() => throwUnmocked('writeFileSync')),
+    existsSync: vi.fn(() => throwUnmocked('existsSync')),
+    statSync: vi.fn(() => throwUnmocked('statSync')),
+    readdirSync: vi.fn(() => throwUnmocked('readdirSync')),
+    unlinkSync: vi.fn(() => throwUnmocked('unlinkSync')),
+    rmdirSync: vi.fn(() => throwUnmocked('rmdirSync')),
+    renameSync: vi.fn(() => throwUnmocked('renameSync')),
+    copyFileSync: vi.fn(() => throwUnmocked('copyFileSync')),
+    accessSync: vi.fn(() => throwUnmocked('accessSync')),
+    chmodSync: vi.fn(() => throwUnmocked('chmodSync')),
+    chownSync: vi.fn(() => throwUnmocked('chownSync'))
   }
 })
 

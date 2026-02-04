@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "test": "vitest",
+    "test:run": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.70",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
+    "vitest": "^2.1.9",
     "@types/react": "^18.3.18",
     "@types/react-dom": "^18.3.5",
     "@types/uuid": "^9.0.8",

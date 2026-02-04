@@ -1,5 +1,6 @@
 import * as child_process from 'child_process'
 import * as fs from 'fs/promises'
+import * as fsSync from 'fs'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocalFilesystemBackend } from '../../../src/backends/LocalFilesystemBackend.js'
 import { DangerousOperationError } from '../../../src/types.js'
@@ -11,8 +12,8 @@ describe('LocalFilesystemBackend (Unit Tests)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
 
-    // Mock mkdir for constructor's ensureRootDir()
-    vi.mocked(fs.mkdir).mockResolvedValue(undefined)
+    // Mock mkdirSync for constructor's ensureRootDir()
+    vi.mocked(fsSync.mkdirSync).mockReturnValue(undefined)
 
     backend = new LocalFilesystemBackend({
       rootDir: '/test/workspace',
