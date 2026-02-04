@@ -45,7 +45,7 @@ This is *client configuration* only. If using a remote daemon, the daemon itself
 ### 3. Create Workspace Directory
 
 ```bash
-mkdir -p /tmp/agentbe-workspace
+mkdir -p /tmp/workspace
 ```
 
 ### 4. Run Development (from monorepo root)
@@ -410,7 +410,7 @@ curl http://localhost:3001/health
 # Expected: {"status":"ok","backend":"local"}
 
 # If not running, start it
-agent-backend daemon --rootDir /tmp/agentbe-workspace
+agent-backend daemon --rootDir /tmp/workspace
 
 # Check if port is accessible from local machine
 curl http://remote-server.com:3001/health

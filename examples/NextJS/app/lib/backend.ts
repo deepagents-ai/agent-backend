@@ -1,6 +1,6 @@
 import type { FileBasedBackend } from 'agent-backend'
 import { LocalFilesystemBackend, RemoteFilesystemBackend } from 'agent-backend'
-import { backendConfig } from './backend-config'
+import { getBackendConfig } from './backend-config'
 
 class BackendManager {
   private backend: FileBasedBackend | null = null
@@ -8,8 +8,18 @@ class BackendManager {
   private currentType: 'local' | 'remote' | null = null
 
   async getBackend(): Promise<FileBasedBackend> {
-    if (this.backend) {
+    const config = await getBackendConfig()
+    console.log('[BackendManager] getBackend called, config type:', config.type, 'current cached type:', this.currentType)
+
+    if (this.backend && this.currentType === config.type) {
+      console.log('[BackendManager] Returning cached backend')
       return this.backend
+    }
+
+    // Config type changed, need to reinitialize
+    if (this.backend && this.currentType !== config.type) {
+      console.log('[BackendManager] Config type changed, reinitializing...')
+      await this.disconnect()
     }
 
     if (this.connecting) {
@@ -38,11 +48,13 @@ class BackendManager {
   }
 
   private async initializeBackend(): Promise<void> {
-    const config = backendConfig.getConfig()
+    const config = await getBackendConfig()
+    console.log('[BackendManager] initializeBackend, config:', JSON.stringify(config, null, 2))
     this.currentType = config.type
 
     if (config.type === 'remote' && config.remote) {
       const remote = config.remote
+      console.log('[BackendManager] Creating RemoteFilesystemBackend')
 
       if (!remote.host) {
         throw new Error('Remote backend requires host')
@@ -56,9 +68,10 @@ class BackendManager {
       this.backend = new RemoteFilesystemBackend(remote)
     } else {
       const local = config.local || {
-        rootDir: '/tmp/agentbe-workspace',
+        rootDir: '/tmp/workspace',
         isolation: 'software',
       }
+      console.log('[BackendManager] Creating LocalFilesystemBackend with rootDir:', local.rootDir)
 
       this.backend = new LocalFilesystemBackend({
         rootDir: local.rootDir,
@@ -66,9 +79,13 @@ class BackendManager {
       })
     }
 
+    console.log('[BackendManager] Backend created, type:', this.backend.type)
+
     // LocalFilesystemBackend doesn't need explicit connect
     if ('connect' in this.backend && typeof this.backend.connect === 'function') {
+      console.log('[BackendManager] Connecting to backend...')
       await this.backend.connect()
+      console.log('[BackendManager] Connected')
     }
   }
 

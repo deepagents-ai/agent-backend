@@ -4,7 +4,7 @@
 # Translates environment variables to CLI arguments
 #
 # Environment variables (all optional, CLI has defaults):
-#   WORKSPACE_ROOT    - Root directory to serve (default: /var/agentbe)
+#   WORKSPACE_ROOT    - Root directory to serve (default: /var/workspace)
 #   MCP_PORT          - MCP server port
 #   MCP_AUTH_TOKEN    - Bearer token for MCP authentication
 #   SSH_USERS         - Comma-separated user:pass pairs
@@ -15,7 +15,7 @@
 set -e
 
 # Only WORKSPACE_ROOT needs a default since rootDir is required by CLI
-WORKSPACE_ROOT="${WORKSPACE_ROOT:-/var/agentbe}"
+WORKSPACE_ROOT="${WORKSPACE_ROOT:-/var/workspace}"
 
 # Create workspace directory
 mkdir -p "$WORKSPACE_ROOT"
@@ -53,4 +53,17 @@ if [ -f /keys/authorized_keys ]; then
 fi
 
 echo ""
-exec agent-backend daemon "${DAEMON_ARGS[@]}"
+
+# Ensure we're in a valid directory
+cd "$WORKSPACE_ROOT"
+
+# Use local mounted build with nodemon for hot-reload in dev mode
+if [ "$USE_LOCAL_BUILD" = "1" ] && [ -d /app/agent-backend ]; then
+  echo "🔥 Hot-reload enabled (watching /app/agent-backend)"
+  exec npx nodemon \
+    --watch /app/agent-backend \
+    --ext js \
+    --exec "cd $WORKSPACE_ROOT && node /app/agent-backend/bin/agent-backend.js daemon ${DAEMON_ARGS[*]}"
+else
+  exec agent-backend daemon "${DAEMON_ARGS[@]}"
+fi

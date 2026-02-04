@@ -50,7 +50,7 @@ export function resolvePathSafely(workspacePath: string, targetPath: string): st
     const normalizedTarget = normalize(targetPath)
 
     // Check if this absolute path starts with the workspace path
-    // e.g., "/var/users/someWorkspace/someDir" when workspace is "/var/users/someWorkspace"
+    // e.g., "/var/workspace/someDir" when workspace is "/var/workspace"
     if (normalizedTarget === normalizedWorkspace) {
       // Path is exactly the workspace root
       normalizedTargetPath = '.'

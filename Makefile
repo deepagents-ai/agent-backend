@@ -137,7 +137,7 @@ dev-remote: ## Start dev with Docker-based daemon
 		echo "Install: https://docs.docker.com/get-docker/"; \
 		exit 1; \
 	}
-	@mkdir -p tmp/remote-workspace
+	@mkdir -p tmp/deploy
 	@if ! docker images | grep -q "agentbe-daemon.*latest"; then \
 		echo "Docker image not found. Building agentbe-daemon:latest..."; \
 		$(MAKE) docker-build; \
@@ -160,7 +160,7 @@ clean: ## Clean build artifacts and dependencies
 
 ##@ Docker
 
-docker-build: ## Build Docker image for daemon testing
+docker-build: build-typescript ## Build Docker image for daemon testing
 	@echo "Building agentbe-daemon Docker image..."
 	@cd typescript/deploy/docker && \
 		docker build -f Dockerfile.runtime -t agentbe-daemon:latest ../../..

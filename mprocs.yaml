@@ -25,21 +25,69 @@ procs:
 
   # Docker daemon for remote backend testing
   # Only runs when REMOTE=1 is set
+  # Does initial pnpm deploy, then mounts it with nodemon for hot-reload
   agentbe-daemon:
     shell: |
       [ -z "$REMOTE" ] && echo "Skipped (set REMOTE=1 to enable)" && exit 0
+
+      # Trap signals to properly stop container
+      cleanup() {
+        echo "Stopping container..."
+        docker stop agentbe-daemon 2>/dev/null || true
+        exit 0
+      }
+      trap cleanup SIGINT SIGTERM
+
+      # Clean up any existing container first
+      docker stop agentbe-daemon 2>/dev/null || true
+      docker rm agentbe-daemon 2>/dev/null || true
+
+      # Do initial deploy (sets up node_modules)
+      echo "Creating standalone deploy folder..."
+      rm -rf tmp/deploy
+      pnpm --filter=agent-backend deploy --prod --legacy tmp/deploy
+
+      # Start container in background so trap can catch signals
       ENV_FILE=".env.example"
       [ -f ".env" ] && ENV_FILE=".env"
+      echo "Starting container..."
       docker run --rm \
         --name agentbe-daemon \
         -p 3001:3001 \
         -p 2222:22 \
-        -v "$(pwd)/tmp/remote-workspace:/var/workspace" \
+        -v "$(pwd)/tmp/deploy:/app/agent-backend:ro" \
+        -e USE_LOCAL_BUILD=1 \
         --env-file "$ENV_FILE" \
-        agentbe-daemon:latest
+        agentbe-daemon:latest &
+
+      # Wait for container (allows trap to work)
+      wait
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"
+    depends_on:
+      typescript-watch:
+        condition: "running"
+
+  # Syncs typescript dist changes to deploy folder for hot-reload
+  # Only runs when REMOTE=1 is set
+  deploy-sync:
+    shell: |
+      [ -z "$REMOTE" ] && echo "Skipped (set REMOTE=1 to enable)" && exit 0
+      # Wait for initial deploy
+      while [ ! -d tmp/deploy/dist ]; do sleep 1; done
+      echo "Watching typescript/dist for changes..."
+      npx nodemon \
+        --watch typescript/dist \
+        --ext js,cjs,json \
+        --delay 1 \
+        --exec "rsync -av --delete typescript/dist/ tmp/deploy/dist/"
+    stop: "SIGTERM"
+    env:
+      FORCE_COLOR: "1"
+    depends_on:
+      agentbe-daemon:
+        condition: "running"
 
   nextjs:
     cmd: ["pnpm", "run", "dev"]

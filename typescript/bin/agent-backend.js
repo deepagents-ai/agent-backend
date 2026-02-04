@@ -310,17 +310,6 @@ async function setupSshUsers(config) {
       console.error(`   ✗ Failed to set password for ${username}: ${error.message}`)
     }
 
-    // Create workspace directory for user
-    const userWorkspace = `${config.rootDir}/${username}`
-    try {
-      execSync(`mkdir -p "${userWorkspace}"`, { stdio: 'pipe' })
-      execSync(`chown ${username}:${username} "${userWorkspace}"`, { stdio: 'pipe' })
-      execSync(`chmod 755 "${userWorkspace}"`, { stdio: 'pipe' })
-      console.error(`   ✓ Created workspace: ${userWorkspace}`)
-    } catch (error) {
-      console.error(`   ✗ Failed to create workspace: ${error.message}`)
-    }
-
     // Set up .ssh directory
     const sshDir = username === 'root' ? '/root/.ssh' : `/home/${username}/.ssh`
     try {

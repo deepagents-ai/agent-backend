@@ -138,27 +138,27 @@ export default function Chat({ sessionId }: ChatProps) {
                           </button>
 
                           {expandedTools.has(toolKey) && (
-                            <div className="border-t border-border-subtle p-3 space-y-2">
+                            <div className="border-t border-border-subtle p-3 space-y-2 overflow-hidden">
                               {tool.input && (
-                                <div>
+                                <div className="min-w-0">
                                   <p className="text-xs font-medium text-text-tertiary mb-1">Input:</p>
-                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary">
+                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary whitespace-pre-wrap break-all">
                                     {JSON.stringify(tool.input, null, 2)}
                                   </pre>
                                 </div>
                               )}
                               {tool.output && (
-                                <div>
+                                <div className="min-w-0">
                                   <p className="text-xs font-medium text-text-tertiary mb-1">Output:</p>
-                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary">
+                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-secondary whitespace-pre-wrap break-all max-h-64">
                                     {JSON.stringify(tool.output, null, 2)}
                                   </pre>
                                 </div>
                               )}
                               {tool.errorText && (
-                                <div>
+                                <div className="min-w-0">
                                   <p className="text-xs font-medium text-text-red mb-1">Error:</p>
-                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-red">
+                                  <pre className="text-xs bg-bg-app rounded p-2 overflow-x-auto text-text-red whitespace-pre-wrap break-all">
                                     {tool.errorText}
                                   </pre>
                                 </div>

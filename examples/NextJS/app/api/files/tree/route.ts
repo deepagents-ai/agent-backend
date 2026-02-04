@@ -15,12 +15,17 @@ async function buildFileTree(backend: FileBasedBackend, dirPath: string): Promis
       // Use stat to get file metadata
       const stats = await backend.stat(fullPath)
 
+      // mtime can be a Date (local fs) or number/Unix timestamp (SFTP)
+      const mtime = stats.mtime instanceof Date
+        ? stats.mtime.toISOString()
+        : new Date((stats.mtime as number) * 1000).toISOString()
+
       const item: FileItem = {
         name: filename,
         path: fullPath,
         type: stats.isDirectory() ? 'directory' : 'file',
         size: stats.size,
-        mtime: stats.mtime.toISOString(),
+        mtime,
       }
 
       if (stats.isDirectory()) {

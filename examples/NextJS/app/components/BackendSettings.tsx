@@ -1,6 +1,6 @@
 'use client'
 
-import { DEFAULT_LOCAL_CONFIG, DEFAULT_REMOTE_CONFIG, type BackendConfig } from '@/lib/backend-config'
+import { DEFAULT_REMOTE_CONFIG, type BackendConfig } from '@/lib/backend-config-types'
 import { Eye, EyeOff, Server, Settings, Wifi, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 
@@ -147,7 +147,7 @@ export default function BackendSettings() {
                       })
                     }
                     className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
-                    placeholder="/tmp/agentbe-workspace"
+                    placeholder="/tmp/workspace"
                   />
                 </div>
                 <div>
@@ -160,7 +160,7 @@ export default function BackendSettings() {
                       setConfig({
                         ...config,
                         local: {
-                          rootDir: config.local?.rootDir || '/tmp/agentbe-workspace',
+                          rootDir: config.local?.rootDir || '/tmp/workspace',
                           isolation: e.target.value as any,
                         },
                       })

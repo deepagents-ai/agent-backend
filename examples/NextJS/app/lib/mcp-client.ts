@@ -1,5 +1,37 @@
 import { backendManager } from './backend'
 
+// MCP client cache - exported so it can be cleared on config change
+const mcpClientCache = new Map<string, any>()
+
+/**
+ * Clear all cached MCP clients (call when backend config changes)
+ */
+export function clearMCPClients() {
+  console.log('[mcp-client] Clearing', mcpClientCache.size, 'cached clients')
+  // Close all clients before clearing
+  for (const [sessionId, client] of mcpClientCache) {
+    try {
+      client.close?.()
+    } catch (e) {
+      console.warn('[mcp-client] Error closing client:', e)
+    }
+  }
+  mcpClientCache.clear()
+}
+
+/**
+ * Get or create an MCP client for a session
+ */
+export async function getMCPClientForSession(sessionId: string) {
+  if (mcpClientCache.has(sessionId)) {
+    return mcpClientCache.get(sessionId)
+  }
+
+  const client = await createMCPClient()
+  mcpClientCache.set(sessionId, client)
+  return client
+}
+
 /**
  * Create an MCP client using the configured backend.
  *
@@ -16,6 +48,7 @@ import { backendManager } from './backend'
 export async function createMCPClient() {
   // Get the backend (Local or Remote based on env)
   const backend = await backendManager.getBackend()
+  console.log('[mcp-client] Creating MCP client for backend type:', backend.type)
 
   // Let backend handle MCP client creation
   // - Local: spawns CLI via stdio

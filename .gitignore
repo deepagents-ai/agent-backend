@@ -39,3 +39,4 @@ remote/deploy-tool/.env
 
 # Development
 tmp/
+tmp/deploy

@@ -72,7 +72,7 @@ Execute code and manage files locally:
 import { LocalFilesystemBackend } from 'agent-backend'
 
 const fs = new LocalFilesystemBackend({
-  rootDir: '/tmp/agent-workspace'
+  rootDir: '/tmp/workspace'
 })
 
 await fs.exec('git clone https://github.com/user/repo.git .')
@@ -91,7 +91,7 @@ Same API, operations run on a remote server via SSH:
 import { RemoteFilesystemBackend } from 'agent-backend'
 
 const fs = new RemoteFilesystemBackend({
-  rootDir: '/var/agent-workspace',
+  rootDir: '/var/workspace',
   host: 'build-server.example.com',
   sshAuth: {
     type: 'password',
@@ -390,7 +390,7 @@ const fs = new RemoteFilesystemBackend({
 
 ```typescript
 const sandbox = new LocalFilesystemBackend({
-  rootDir: '/tmp/sandbox',
+  rootDir: '/tmp/workspace',
   isolation: 'auto'
 })
 
@@ -587,7 +587,7 @@ Manual testing:
 ```bash
 docker run --rm -it \
   -p 3001:3001 -p 2222:22 \
-  -v "$(pwd)/tmp/remote-workspace:/var/workspace" \
+  -v "$(pwd)/tmp/workspace:/var/workspace" \
   agentbe-daemon:latest
 
 # Test: ssh -p 2222 root@localhost (password: agents)

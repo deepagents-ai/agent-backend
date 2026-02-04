@@ -1,25 +1,12 @@
-import { createMCPClient } from '@/lib/mcp-client'
+import { getMCPClientForSession } from '@/lib/mcp-client'
 import { openrouter } from '@openrouter/ai-sdk-provider'
 import { convertToModelMessages, streamText } from 'ai'
-
-// MCP client cache per session
-const mcpClients = new Map<string, any>()
-
-async function getMCPClient(sessionId: string) {
-  if (mcpClients.has(sessionId)) {
-    return mcpClients.get(sessionId)
-  }
-
-  const client = await createMCPClient()
-  mcpClients.set(sessionId, client)
-  return client
-}
 
 export async function POST(req: Request) {
   const { id, messages, sessionId } = await req.json()
 
-  // Get MCP client and convert tools
-  const mcpClient = await getMCPClient(sessionId)
+  // Get MCP client (cached per session, cleared on backend config change)
+  const mcpClient = await getMCPClientForSession(sessionId)
   const toolsResult = await mcpClient.listTools()
 
   const tools = toolsResult.tools.reduce((acc: any, tool: any) => {

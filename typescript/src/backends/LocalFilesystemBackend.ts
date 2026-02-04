@@ -1,6 +1,6 @@
 import type { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { execSync, spawn } from 'child_process'
-import type { Stats } from 'fs'
+import { mkdirSync, type Stats } from 'fs'
 import { access, mkdir as fsMkdir, rename as fsRename, rm as fsRm, readdir, readFile, stat, writeFile } from 'fs/promises'
 import * as path from 'path'
 import { ERROR_CODES } from '../constants.js'
@@ -67,7 +67,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
    */
   private ensureRootDir(): void {
     try {
-      fsMkdir(this.rootDir, { recursive: true })
+      mkdirSync(this.rootDir, { recursive: true })
     } catch (error) {
       throw new BackendError(
         `Failed to create root directory: ${this.rootDir}`,
@@ -222,7 +222,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     }
 
     // Calculate sandbox-relative path
-    // Example: rootDir='/tmp/app', cwd='/tmp/app/users/user1'
+    // Example: rootDir='/tmp/workspace', cwd='/tmp/workspace/users/user1'
     // Result: relativeCwd='users/user1', bwrapCwd='/tmp/workspace/users/user1'
     const relativeCwd = path.relative(this.rootDir, normalizedCwd)
     const bwrapCwd = relativeCwd ? `/tmp/workspace/${relativeCwd}` : '/tmp/workspace'

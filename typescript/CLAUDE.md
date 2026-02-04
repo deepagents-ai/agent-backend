@@ -84,9 +84,9 @@ tests/unit/                     # Unit tests (Vitest)
 
 **agentbe-daemon (Agent Backend Daemon)**:
 - The `agent-backend` CLI process running as a daemon
-- Serves a local filesystem remotely via MCP over HTTP
-- Always serves its LOCAL filesystem (it's "remote" from client's perspective)
-- Example: `agent-backend daemon --rootDir /tmp/agentbe-workspace`
+- Serves a local filesystem remotely via MCP and SSH
+- Always serves its LOCAL filesystem (it's "remote" from client's perspective if also served via SSH/MCP on HTTP)
+- Example: `agent-backend daemon --rootDir /var/workspace`
 
 **Backend (Client-Side Interface)**:
 - `LocalFilesystemBackend` - Direct local filesystem access

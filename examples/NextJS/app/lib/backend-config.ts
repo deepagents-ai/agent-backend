@@ -1,53 +1,22 @@
-import type { LocalFilesystemBackendConfig, RemoteFilesystemBackendConfig } from 'agent-backend'
+import { cookies } from 'next/headers'
+import { COOKIE_NAME, getDefaultConfig, type BackendConfig } from './backend-config-types'
 
-export type BackendConfig = {
-  type: 'local' | 'remote'
-  local?: LocalFilesystemBackendConfig
-  remote?: RemoteFilesystemBackendConfig
-}
+// Re-export types and constants for convenience
+export * from './backend-config-types'
 
-// Default configurations matching daemon defaults
-export const DEFAULT_LOCAL_CONFIG: LocalFilesystemBackendConfig = {
-  rootDir: '/tmp/agentbe-workspace',
-  isolation: 'software',
-}
-
-export const DEFAULT_REMOTE_CONFIG: RemoteFilesystemBackendConfig = {
-  host: 'localhost',
-  sshPort: 2222,
-  mcpPort: 3001,
-  rootDir: '/var/workspace',
-  sshAuth: {
-    type: 'password',
-    credentials: {
-      username: 'root',
-      password: 'agents',
-    },
-  },
-}
-
-class BackendConfigManager {
-  private config: BackendConfig = {
-    type: 'local',
-    local: DEFAULT_LOCAL_CONFIG,
-    remote: DEFAULT_REMOTE_CONFIG,
-  }
-
-  getConfig(): BackendConfig {
-    return this.config
-  }
-
-  setConfig(config: BackendConfig): void {
-    this.config = config
-  }
-
-  reset(): void {
-    this.config = {
-      type: 'local',
-      local: DEFAULT_LOCAL_CONFIG,
-      remote: DEFAULT_REMOTE_CONFIG,
+/**
+ * Get backend config from cookie.
+ * Must be called within a request context (route handler, server component, etc.)
+ */
+export async function getBackendConfig(): Promise<BackendConfig> {
+  try {
+    const cookieStore = await cookies()
+    const configCookie = cookieStore.get(COOKIE_NAME)
+    if (configCookie) {
+      return JSON.parse(configCookie.value)
     }
+  } catch (e) {
+    console.warn('[getBackendConfig] Failed to read config from cookie:', e)
   }
+  return getDefaultConfig()
 }
-
-export const backendConfig = new BackendConfigManager()

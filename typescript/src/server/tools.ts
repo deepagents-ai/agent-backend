@@ -159,8 +159,8 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
       description: 'Read complete contents of a file as text',
       inputSchema: {
         path: z.string().describe('Path to the file'),
-        head: z.number().nullable().describe('Return only the first N lines (null to ignore)'),
-        tail: z.number().nullable().describe('Return only the last N lines (null to ignore)'),
+        head: z.number().optional().describe('Return only the first N lines'),
+        tail: z.number().optional().describe('Return only the last N lines'),
       },
     },
     async ({ path: filePath, head, tail }, { sessionId }) => {
@@ -289,8 +289,8 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
           oldText: z.string().describe('Text to search for - must match exactly'),
           newText: z.string().describe('Text to replace with'),
         })).describe('Array of edits to apply'),
-        dryRun: z.boolean().nullable()
-          .describe('Preview changes using git-style diff format (null defaults to false)'),
+        dryRun: z.boolean().optional()
+          .describe('Preview changes using git-style diff format (defaults to false)'),
       },
     },
     async ({ path: filePath, edits, dryRun: dryRunParam }, { sessionId }) => {
@@ -354,9 +354,9 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
   server.registerTool(
     'list_directory',
     {
-      description: 'List directory contents with [FILE] or [DIR] prefixes',
+      description: 'List directory contents with [FILE] or [DIR] prefixes. Use "." for the root/current directory.',
       inputSchema: {
-        path: z.string().describe('Path to the directory'),
+        path: z.string().describe('Path to the directory (use "." for root)'),
       },
     },
     async ({ path: dirPath }, { sessionId }) => {
@@ -384,11 +384,11 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
   server.registerTool(
     'list_directory_with_sizes',
     {
-      description: 'List directory contents with prefixes, file sizes, and summary statistics',
+      description: 'List directory contents with prefixes, file sizes, and summary statistics. Use "." for the root/current directory.',
       inputSchema: {
-        path: z.string().describe('Path to the directory'),
-        sortBy: z.enum(['name', 'size']).nullable()
-          .describe('Sort entries by name or size (descending), null defaults to name'),
+        path: z.string().describe('Path to the directory (use "." for root)'),
+        sortBy: z.enum(['name', 'size']).optional()
+          .describe('Sort entries by name or size (descending), defaults to name'),
       },
     },
     async ({ path: dirPath, sortBy: sortByParam }, { sessionId }) => {
@@ -443,8 +443,8 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
       description: 'Get recursive JSON tree structure of directory contents. Each entry includes name, type (file/directory), and children for directories.',
       inputSchema: {
         path: z.string().describe('Path to the directory'),
-        excludePatterns: z.array(z.string()).nullable()
-          .describe('Glob patterns to exclude (e.g., "node_modules", "*.log"), null defaults to empty'),
+        excludePatterns: z.array(z.string()).optional()
+          .describe('Glob patterns to exclude (e.g., "node_modules", "*.log")'),
       },
     },
     async ({ path: dirPath, excludePatterns: excludePatternsParam }, { sessionId }) => {
@@ -558,8 +558,8 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
       inputSchema: {
         path: z.string().describe('Starting directory path'),
         pattern: z.string().describe('Glob pattern to match (e.g., "*.ts", "**/*.js", "src/**/*.tsx")'),
-        excludePatterns: z.array(z.string()).nullable()
-          .describe('Patterns to exclude from results, null defaults to empty'),
+        excludePatterns: z.array(z.string()).optional()
+          .describe('Patterns to exclude from results'),
       },
     },
     async ({ path: searchPath, pattern, excludePatterns: excludePatternsParam }, { sessionId }) => {
@@ -664,13 +664,13 @@ export function registerExecTool(server: McpServer, getBackend: BackendGetter): 
       description: 'Execute a shell command in the workspace directory. Not available for memory backends.',
       inputSchema: {
         command: z.string().describe('Shell command to execute'),
-        env: z.record(z.string(), z.string()).nullable()
-          .describe('Environment variables to set for this command, null for none'),
+        env: z.record(z.string(), z.string()).optional()
+          .describe('Optional environment variables to set for this command'),
       },
     },
     async ({ command, env }, { sessionId }) => {
       const backend = await getBackend(sessionId) as FileBasedBackend
-      const result = await backend.exec(command, env != null ? { env } : undefined)
+      const result = await backend.exec(command, env ? { env } : undefined)
       return {
         content: [{ type: 'text', text: result as string }]
       }
