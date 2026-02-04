@@ -1,6 +1,6 @@
 {
   "name": "agent-backend",
-  "version": "0.6.5",
+  "version": "0.8.0",
   "description": "A backend abstraction for AI agents enabling memory, filesystem usage, and code execution",
   "type": "module",
   "main": "dist/index.js",
