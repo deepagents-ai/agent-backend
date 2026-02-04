@@ -17,11 +17,10 @@ import { BackendType } from '../backends/types.js'
 import { ERROR_CODES } from '../constants.js'
 import { BackendError } from '../types.js'
 import {
-  type AnyBackend,
   getProperty,
   getRootBackend,
   hasRemoteConfig,
-  hasRootDir,
+  isFileBasedBackend,
 } from '../typing.js'
 
 /**
@@ -46,9 +45,9 @@ export type MCPTransport = StdioClientTransport | StreamableHTTPClientTransport
  * ```
  */
 export class VercelAIAdapter {
-  private readonly backend: AnyBackend
+  private readonly backend: Backend
 
-  constructor(backend: AnyBackend) {
+  constructor(backend: Backend) {
     this.backend = backend
   }
 
@@ -91,7 +90,7 @@ export class VercelAIAdapter {
    * Get the effective rootDir, considering scoped backends
    */
   private getEffectiveRootDir(): string {
-    if (hasRootDir(this.backend)) {
+    if (isFileBasedBackend(this.backend)) {
       return this.backend.rootDir
     }
     return '/'

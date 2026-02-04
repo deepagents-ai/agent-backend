@@ -6,45 +6,25 @@
  */
 
 import type { Backend, FileBasedBackend, ScopedBackend } from './backends/types.js'
+import type { RemoteFilesystemBackendConfig } from './backends/config.js'
 
 /**
- * Any backend type that can be passed around.
- * All backend types extend Backend, so this is just an alias for clarity.
- */
-export type AnyBackend = Backend
-
-/**
- * Backend with a rootDir property
- */
-export type BackendWithRootDir = AnyBackend & { rootDir: string }
-
-/**
- * Remote backend config shape
- */
-export interface RemoteBackendConfig {
-  host: string
-  mcpPort?: number
-  mcpServerHostOverride?: string
-  mcpAuth?: { token: string }
-}
-
-/**
- * Backend with remote config
- */
-export type BackendWithRemoteConfig = AnyBackend & { config: RemoteBackendConfig }
-
-/**
- * Type guard: Check if a backend has a rootDir property
+ * Type guard: Check if a backend is a file-based backend
  *
  * @example
  * ```typescript
- * if (hasRootDir(backend)) {
- *   console.log(backend.rootDir) // TypeScript knows rootDir exists
+ * if (isFileBasedBackend(backend)) {
+ *   console.log(backend.rootDir)
+ *   await backend.read('file.txt')
  * }
  * ```
  */
-export function hasRootDir(backend: AnyBackend): backend is BackendWithRootDir {
-  return 'rootDir' in backend && typeof (backend as { rootDir?: unknown }).rootDir === 'string'
+export function isFileBasedBackend(backend: Backend): backend is FileBasedBackend {
+  return 'rootDir' in backend &&
+         'read' in backend &&
+         'write' in backend &&
+         'exec' in backend &&
+         typeof (backend as { read?: unknown }).read === 'function'
 }
 
 /**
@@ -53,7 +33,7 @@ export function hasRootDir(backend: AnyBackend): backend is BackendWithRootDir {
  * @example
  * ```typescript
  * if (isScopedBackend(backend)) {
- *   console.log(backend.scopePath) // TypeScript knows it's a ScopedBackend
+ *   console.log(backend.scopePath)
  *   console.log(backend.parent)
  * }
  * ```
@@ -65,36 +45,19 @@ export function isScopedBackend<T extends FileBasedBackend = FileBasedBackend>(
 }
 
 /**
- * Type guard: Check if a backend is a file-based backend (not just base Backend)
- *
- * @example
- * ```typescript
- * if (isFileBasedBackend(backend)) {
- *   await backend.read('file.txt')
- *   await backend.exec('ls')
- * }
- * ```
- */
-export function isFileBasedBackend(backend: AnyBackend): backend is FileBasedBackend {
-  return 'rootDir' in backend &&
-         'read' in backend &&
-         'write' in backend &&
-         'exec' in backend &&
-         typeof (backend as { read?: unknown }).read === 'function'
-}
-
-/**
  * Type guard: Check if a backend has remote config (RemoteFilesystemBackend)
+ * Uses duck typing since config is a private property on the class.
  *
  * @example
  * ```typescript
  * if (hasRemoteConfig(backend)) {
  *   console.log(backend.config.host)
- *   console.log(backend.config.mcpPort)
  * }
  * ```
  */
-export function hasRemoteConfig(backend: AnyBackend): backend is BackendWithRemoteConfig {
+export function hasRemoteConfig(
+  backend: Backend
+): backend is Backend & { config: RemoteFilesystemBackendConfig } {
   if (!('config' in backend)) return false
   const config = (backend as { config?: unknown }).config
   if (typeof config !== 'object' || config === null) return false

@@ -94,14 +94,6 @@ export {
     getProperty,
     getRootBackend,
     hasRemoteConfig,
-    hasRootDir,
     isFileBasedBackend,
     isScopedBackend,
-} from './typing.js'
-
-export type {
-    AnyBackend,
-    BackendWithRemoteConfig,
-    BackendWithRootDir,
-    RemoteBackendConfig,
 } from './typing.js'
