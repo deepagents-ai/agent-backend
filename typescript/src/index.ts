@@ -78,3 +78,10 @@ export {
     type AgentBeMCPClientOptions,
     type CreateMCPClientOptions
 } from './mcp/client.js'
+
+// ============================================================================
+// Adapters
+// ============================================================================
+
+export { VercelAIAdapter } from './adapters/index.js'
+export type { MCPTransport } from './adapters/index.js'

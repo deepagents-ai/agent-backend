@@ -88,6 +88,10 @@
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     },
+    "./adapters": {
+      "types": "./dist/adapters/index.d.ts",
+      "import": "./dist/adapters/index.js"
+    },
     "./mcp": {
       "types": "./dist/mcp/index.d.ts",
       "import": "./dist/mcp/index.js"
