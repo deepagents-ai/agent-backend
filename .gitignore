@@ -36,3 +36,7 @@ logs/
 .claude
 .env
 remote/deploy-tool/.env
+
+# Development
+tmp/
+tmp/deploy

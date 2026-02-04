@@ -1,6 +1,6 @@
 ---
 name: Bug Report
-about: Report a bug in ConstellationFS
+about: Report a bug in AgentBackend
 title: '[BUG] '
 labels: bug
 assignees: ''
@@ -27,7 +27,7 @@ assignees: ''
 ```
 
 ## Environment
-- **ConstellationFS Version**: 
+- **AgentBackend Version**: 
 - **Node.js Version**: 
 - **Operating System**: 
 - **Backend Type**: (local/docker/remote)

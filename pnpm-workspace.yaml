@@ -1,0 +1,3 @@
+packages:
+  - 'typescript'
+  - 'examples/NextJS'

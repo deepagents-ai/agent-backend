@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to ConstellationFS will be documented in this file.
+All notable changes to AgentBackend will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.1.0] - 2024-XX-XX
 
 ### Added
-- Initial release of ConstellationFS
+- Initial release of AgentBackend
 - Local filesystem backend with bash command execution
 - Safety features including dangerous command blocking
 - Path traversal protection and workspace isolation
@@ -39,5 +39,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Workspace boundary enforcement
 - Input validation and sanitization
 
-[Unreleased]: https://github.com/constellation-fs/constellation-fs/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/constellation-fs/constellation-fs/releases/tag/v0.1.0
+[Unreleased]: https://github.com/agent-backend/agent-backend/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/agent-backend/agent-backend/releases/tag/v0.1.0

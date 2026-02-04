@@ -1,13 +1,13 @@
 ---
 name: Question
-about: Ask a question about ConstellationFS
+about: Ask a question about AgentBackend
 title: '[QUESTION] '
 labels: question
 assignees: ''
 ---
 
 ## Question
-<!-- Your question about ConstellationFS -->
+<!-- Your question about AgentBackend -->
 
 ## Context
 <!-- Why are you asking this question? What are you trying to achieve? -->
@@ -21,5 +21,5 @@ assignees: ''
 ```
 
 ## Environment
-- **ConstellationFS Version**: 
+- **AgentBackend Version**: 
 - **Node.js Version**: 
