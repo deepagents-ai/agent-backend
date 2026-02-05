@@ -93,11 +93,6 @@ const DANGEROUS_PATTERNS = [
   /\bcat\b.*>\s*\/etc\//,
   /\becho\b.*>\s*\/etc\//,
 
-  // Shell injection patterns - command chaining (dangerous in most contexts)
-  /;/,  // Semicolon command separator
-  /&&/,  // AND command chaining
-  /\|\|/,  // OR command chaining
-
   // Obfuscation patterns
   /[a-z]""[a-z]/,  // r""m style obfuscation
 

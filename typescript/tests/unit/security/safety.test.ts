@@ -96,18 +96,17 @@ describe('Command Safety Detection (Unit Tests)', () => {
     })
 
     describe('Shell Injection Patterns', () => {
-      it('should detect command chaining with semicolon', () => {
-        expect(isDangerous('ls; rm -rf /')).toBe(true)
-        expect(isDangerous('echo test; cat /etc/passwd')).toBe(true)
+      it('should allow command chaining (not inherently dangerous)', () => {
+        // Command chaining itself is not dangerous - the actual commands matter
+        expect(isDangerous('ls; echo hello')).toBe(false)
+        expect(isDangerous('true && echo success')).toBe(false)
+        expect(isDangerous('false || echo fallback')).toBe(false)
       })
 
-      it('should detect command chaining with &&', () => {
+      it('should still detect dangerous commands within chains', () => {
+        // The dangerous part is rm -rf /, not the chaining
         expect(isDangerous('ls && rm -rf /')).toBe(true)
-        expect(isDangerous('true && malicious-command')).toBe(true)
-      })
-
-      it('should detect command chaining with ||', () => {
-        expect(isDangerous('false || malicious-command')).toBe(true)
+        expect(isDangerous('ls; rm -rf /')).toBe(true)
       })
 
       it('should detect command substitution', () => {

@@ -197,6 +197,27 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
   }
 
   /**
+   * Build the full command string with HOME, environment variables, and directory context.
+   * This encapsulates the pattern: HOME='<cwd>' <env vars> cd "<cwd>" && <command>
+   *
+   * @param command - The command to execute
+   * @param cwd - Working directory (also used as HOME)
+   * @param customEnv - Optional additional environment variables
+   * @returns The full command string ready for SSH execution
+   */
+  buildFullCommand(command: string, cwd: string, customEnv?: Record<string, string | undefined>): string {
+    const envPrefix = this.buildEnvPrefix(customEnv)
+
+    // Set HOME to cwd so ~ and $HOME reference the workspace
+    const homePrefix = cwd && cwd !== '/' ? `HOME='${cwd}' ` : ''
+
+    if (cwd && cwd !== '/') {
+      return `${homePrefix}${envPrefix}cd "${cwd}" && ${command}`
+    }
+    return `${envPrefix}${command}`
+  }
+
+  /**
    * Resolve and validate path is within rootDir
    * Uses shared validation utility for DRY
    */
@@ -240,7 +261,6 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
 
     const cwd = options?.cwd ?? this.rootDir
     const encoding = options?.encoding ?? 'utf8'
-    const envPrefix = this.buildEnvPrefix(options?.env)
 
     // Use channel limiting
     return this.withChannelLimit(() => new Promise((resolve, reject) => {
@@ -249,10 +269,7 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
         return
       }
 
-      // Build full command with environment variables and directory change
-      const fullCommand = cwd && cwd !== '/'
-        ? `${envPrefix}cd "${cwd}" && ${command}`
-        : `${envPrefix}${command}`
+      const fullCommand = this.buildFullCommand(command, cwd, options?.env)
 
       getLogger().debug(`[SSH exec] Executing command: ${fullCommand}`)
 

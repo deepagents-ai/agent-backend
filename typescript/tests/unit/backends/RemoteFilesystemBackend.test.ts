@@ -9,6 +9,23 @@ vi.mock('ssh2', () => ({
   Client: vi.fn()
 }))
 
+// Test constants
+const TEST_ROOT_DIR = '/remote/workspace'
+
+/**
+ * Build the expected full command string that RemoteFilesystemBackend.exec() generates.
+ * This mirrors the logic in buildFullCommand() for test assertions.
+ */
+function expectedCommand(command: string, cwd: string = TEST_ROOT_DIR, env?: Record<string, string>): string {
+  const envPrefix = env
+    ? Object.entries(env).map(([k, v]) => `${k}='${v}'`).join(' ') + ' '
+    : ''
+  if (cwd && cwd !== '/') {
+    return `HOME='${cwd}' ${envPrefix}cd "${cwd}" && ${command}`
+  }
+  return `${envPrefix}${command}`
+}
+
 // Helper to create a mock SSH client with configurable behavior
 function createMockSSHClient(options: {
   connectBehavior?: 'success' | 'error' | 'timeout'
@@ -107,7 +124,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -119,7 +136,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       })
 
       expect(backend.type).toBe('remote-filesystem')
-      expect(backend.rootDir).toBe('/remote/workspace')
+      expect(backend.rootDir).toBe(TEST_ROOT_DIR)
       expect(backend.connected).toBe(false)
     })
 
@@ -253,7 +270,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -261,19 +278,19 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
         }
       })
 
-      expect(backend.rootDir).toBe('/remote/workspace')
+      expect(backend.rootDir).toBe(TEST_ROOT_DIR)
     })
   })
 
   describe('SSH Connection', () => {
     it('should establish connection on first operation', async () => {
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && echo test', { stdout: 'test', exitCode: 0 }]])
+        execResults: new Map([[expectedCommand('echo test'), { stdout: 'test', exitCode: 0 }]])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -293,7 +310,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -307,14 +324,14 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
     it('should reuse existing connection', async () => {
       const mockClient = createMockSSHClient({
         execResults: new Map([
-          ['cd "/remote/workspace" && echo test1', { stdout: 'test1', exitCode: 0 }],
-          ['cd "/remote/workspace" && echo test2', { stdout: 'test2', exitCode: 0 }]
+          [expectedCommand('echo test1'), { stdout: 'test1', exitCode: 0 }],
+          [expectedCommand('echo test2'), { stdout: 'test2', exitCode: 0 }]
         ])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -333,12 +350,12 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
   describe('Command Execution', () => {
     it('should execute command and return output', async () => {
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && echo hello', { stdout: 'hello\n', exitCode: 0 }]])
+        execResults: new Map([[expectedCommand('echo hello'), { stdout: 'hello\n', exitCode: 0 }]])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -354,7 +371,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -369,7 +386,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -382,12 +399,12 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
 
     it('should handle command failures with non-zero exit code', async () => {
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && false', { stdout: '', stderr: 'error', exitCode: 1 }]])
+        execResults: new Map([[expectedCommand('false'), { stdout: '', stderr: 'error', exitCode: 1 }]])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -404,7 +421,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         preventDangerous: true,
         sshAuth: {
@@ -418,12 +435,12 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
 
     it('should allow dangerous commands when preventDangerous=false', async () => {
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && rm -rf /', { stdout: '', exitCode: 0 }]])
+        execResults: new Map([[expectedCommand('rm -rf /'), { stdout: '', exitCode: 0 }]])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         preventDangerous: false,
         sshAuth: {
@@ -442,7 +459,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
 
       const onDangerous = vi.fn()
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         preventDangerous: true,
         onDangerousOperation: onDangerous,
@@ -469,7 +486,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -484,7 +501,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
     it('should write file contents', async () => {
       const writtenContent: { path: string, content: string }[] = []
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && mkdir -p "/remote/workspace"', { stdout: '', exitCode: 0 }]]),
+        execResults: new Map([[expectedCommand(`mkdir -p "${TEST_ROOT_DIR}"`), { stdout: '', exitCode: 0 }]]),
         sftpMethods: {
           writeFile: (path, content, callback) => {
             writtenContent.push({ path, content })
@@ -495,7 +512,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -505,7 +522,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
 
       await backend.write('test.txt', 'new content')
       expect(writtenContent).toContainEqual({
-        path: '/remote/workspace/test.txt',
+        path: `${TEST_ROOT_DIR}/test.txt`,
         content: 'new content'
       })
     })
@@ -523,7 +540,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -539,7 +556,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       const mockClient = createMockSSHClient({
         sftpMethods: {
           stat: (path, callback) => {
-            if (path === '/remote/workspace/exists.txt') {
+            if (path === `${TEST_ROOT_DIR}/exists.txt`) {
               callback(null, { isFile: () => true })
             } else {
               callback(new Error('ENOENT'))
@@ -550,7 +567,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -577,7 +594,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -603,7 +620,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -612,17 +629,17 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       })
 
       await backend.mkdir('newdir')
-      expect(createdDirs).toContain('/remote/workspace/newdir')
+      expect(createdDirs).toContain(`${TEST_ROOT_DIR}/newdir`)
     })
 
     it('should create directories recursively', async () => {
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && mkdir -p "/remote/workspace/deep/nested/dir"', { stdout: '', exitCode: 0 }]])
+        execResults: new Map([[expectedCommand(`mkdir -p "${TEST_ROOT_DIR}/deep/nested/dir"`), { stdout: '', exitCode: 0 }]])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -637,7 +654,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
     it('should touch (create empty) files', async () => {
       const writtenContent: { path: string, content: string }[] = []
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && mkdir -p "/remote/workspace"', { stdout: '', exitCode: 0 }]]),
+        execResults: new Map([[expectedCommand(`mkdir -p "${TEST_ROOT_DIR}"`), { stdout: '', exitCode: 0 }]]),
         sftpMethods: {
           writeFile: (path, content, callback) => {
             writtenContent.push({ path, content })
@@ -648,7 +665,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -658,7 +675,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
 
       await backend.touch('empty.txt')
       expect(writtenContent).toContainEqual({
-        path: '/remote/workspace/empty.txt',
+        path: `${TEST_ROOT_DIR}/empty.txt`,
         content: ''
       })
     })
@@ -678,7 +695,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -687,14 +704,14 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       })
 
       await backend.read('/etc/passwd')
-      expect(readPaths).toContain('/remote/workspace/etc/passwd')
+      expect(readPaths).toContain(`${TEST_ROOT_DIR}/etc/passwd`)
     })
 
     it('should reject path escape attempts', async () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -711,7 +728,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -729,7 +746,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -744,7 +761,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -759,12 +776,12 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
   describe('Cleanup', () => {
     it('should close SSH connection on destroy', async () => {
       const mockClient = createMockSSHClient({
-        execResults: new Map([['cd "/remote/workspace" && echo test', { stdout: 'test', exitCode: 0 }]])
+        execResults: new Map([[expectedCommand('echo test'), { stdout: 'test', exitCode: 0 }]])
       })
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -784,7 +801,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => createMockSSHClient() as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
@@ -814,7 +831,7 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       vi.mocked(Client).mockImplementation(() => mockClient as any)
 
       const backend = new RemoteFilesystemBackend({
-        rootDir: '/remote/workspace',
+        rootDir: TEST_ROOT_DIR,
         host: 'example.com',
         sshAuth: {
           type: 'password',
