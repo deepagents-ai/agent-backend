@@ -153,10 +153,12 @@ export class LocalFilesystemBackend implements FileBasedBackend {
 
   /**
    * Build environment for command execution
+   * Sets HOME to the working directory so ~ and $HOME reference the workspace
    */
-  private buildEnvironment(customEnv?: Record<string, string | undefined>): NodeJS.ProcessEnv {
+  private buildEnvironment(cwd: string, customEnv?: Record<string, string | undefined>): NodeJS.ProcessEnv {
     return {
       ...process.env,
+      HOME: cwd,
       ...customEnv,
     }
   }
@@ -202,7 +204,6 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     options?: ExecOptions
   ): Promise<string | Buffer> {
     const shell = this.detectShell()
-    const env = this.buildEnvironment(options?.env)
     const encoding = options?.encoding ?? 'utf8'
 
     // Determine working directory
@@ -226,6 +227,9 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     // Result: relativeCwd='users/user1', bwrapCwd='/tmp/workspace/users/user1'
     const relativeCwd = path.relative(this.rootDir, normalizedCwd)
     const bwrapCwd = relativeCwd ? `/tmp/workspace/${relativeCwd}` : '/tmp/workspace'
+
+    // Build environment with HOME set to sandbox cwd
+    const env = this.buildEnvironment(bwrapCwd, options?.env)
 
     const bwrapArgs = [
       // System directories (read-only) - needed for commands to work
@@ -323,8 +327,8 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     options?: ExecOptions
   ): Promise<string | Buffer> {
     const shell = this.detectShell()
-    const env = this.buildEnvironment(options?.env)
     const cwd = options?.cwd ?? this.rootDir
+    const env = this.buildEnvironment(cwd, options?.env)
     const encoding = options?.encoding ?? 'utf8'
 
     return new Promise((resolve, reject) => {
