@@ -113,12 +113,14 @@ RUN chmod +x /entrypoint.sh
 RUN chmod 755 /var/workspace && \
     chown -R root:root /var/workspace
 
-# Expose SSH port and MCP server port
+# Default ports (can be overridden via SSH_PORT and MCP_PORT env vars)
+# EXPOSE is documentation only - actual ports are set by entrypoint
 EXPOSE 22 3001
 
-# Health check to ensure daemon is running
+# Health check for MCP server (uses default port 3001)
+# If using custom MCP_PORT, override with: --health-cmd "curl -f http://localhost:$MCP_PORT/health"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3001/health || exit 1
+    CMD curl -f http://localhost:${MCP_PORT:-3001}/health || exit 1
 
 # Start with custom entrypoint (daemon command handles everything)
 ENTRYPOINT ["/entrypoint.sh"]

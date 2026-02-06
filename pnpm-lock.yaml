@@ -28,13 +28,13 @@ importers:
         version: 4.7.0(monaco-editor@0.55.1)(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
       '@openrouter/ai-sdk-provider':
         specifier: latest
-        version: 2.1.1(ai@6.0.72(zod@3.25.76))(zod@3.25.76)
+        version: 2.1.1(ai@6.0.73(zod@3.25.76))(zod@3.25.76)
       agent-backend:
         specifier: workspace:*
         version: link:../../typescript
       ai:
         specifier: latest
-        version: 6.0.72(zod@3.25.76)
+        version: 6.0.73(zod@3.25.76)
       lucide-react:
         specifier: ^0.469.0
         version: 0.469.0(react@18.3.1)
@@ -173,8 +173,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  '@ai-sdk/gateway@3.0.35':
-    resolution: {integrity: sha512-9aRTVM1P1u4yUIjBpco/WCF1WXr/DgWKuDYgLLHdENS8kiEuxDOPJuGbc/6+7EwQ6ZqSh0UOgeqvHfGJfU23Qg==}
+  '@ai-sdk/gateway@3.0.36':
+    resolution: {integrity: sha512-2r1Q6azvqMYxQ1hqfWZmWg4+8MajoldD/ty65XdhCaCoBfvDu7trcvxXDfTSU+3/wZ1JIDky46SWYFOHnTbsBw==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -1278,8 +1278,8 @@ packages:
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
-  ai@6.0.72:
-    resolution: {integrity: sha512-D3TzDX6LzYL8qwi1A0rLnmuUexqDcCu4LSg77hcDHsqNRkaGspGItkz1U3RnN3ojv31XQYI9VmoWpkj44uvIUA==}
+  ai@6.0.73:
+    resolution: {integrity: sha512-p2/ICXIjAM4+bIFHEkAB+l58zq+aTmxAkotsb6doNt/CEms72zt6gxv2ky1fQDwU4ecMOcmMh78VJUSEKECzlg==}
     engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
@@ -3157,7 +3157,7 @@ snapshots:
       '@vercel/oidc': 3.1.0
       zod: 3.25.76
 
-  '@ai-sdk/gateway@3.0.35(zod@3.25.76)':
+  '@ai-sdk/gateway@3.0.36(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.7
       '@ai-sdk/provider-utils': 4.0.13(zod@3.25.76)
@@ -3706,9 +3706,9 @@ snapshots:
       semver: 7.7.3
     optional: true
 
-  '@openrouter/ai-sdk-provider@2.1.1(ai@6.0.72(zod@3.25.76))(zod@3.25.76)':
+  '@openrouter/ai-sdk-provider@2.1.1(ai@6.0.73(zod@3.25.76))(zod@3.25.76)':
     dependencies:
-      ai: 6.0.72(zod@3.25.76)
+      ai: 6.0.73(zod@3.25.76)
       zod: 3.25.76
 
   '@opentelemetry/api@1.9.0': {}
@@ -4166,9 +4166,9 @@ snapshots:
       '@opentelemetry/api': 1.9.0
       zod: 3.25.76
 
-  ai@6.0.72(zod@3.25.76):
+  ai@6.0.73(zod@3.25.76):
     dependencies:
-      '@ai-sdk/gateway': 3.0.35(zod@3.25.76)
+      '@ai-sdk/gateway': 3.0.36(zod@3.25.76)
       '@ai-sdk/provider': 3.0.7
       '@ai-sdk/provider-utils': 4.0.13(zod@3.25.76)
       '@opentelemetry/api': 1.9.0
