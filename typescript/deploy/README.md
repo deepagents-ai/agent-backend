@@ -158,6 +158,8 @@ agent-backend daemon --rootDir <path> [OPTIONS]
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `SSH_PORT` | SSH daemon port (inside container) | `22` |
+| `SSH_HOST_PORT` | SSH host port (docker-compose only) | `2222` |
 | `SSH_USERS` | Comma-separated `user:password` pairs | `root:agents` |
 | `SSH_PUBLIC_KEY` | SSH public key for key auth | None |
 | `WORKSPACE_ROOT` | Root directory for workspaces | `/var/workspace` |
@@ -174,11 +176,13 @@ services:
       context: ../..
       dockerfile: deploy/docker/Dockerfile.runtime
     ports:
-      - "2222:22"
-      - "3001:3001"
+      - "${SSH_HOST_PORT:-2222}:${SSH_PORT:-22}"
+      - "${MCP_PORT:-3001}:${MCP_PORT:-3001}"
     volumes:
       - ./var/workspace:/var/workspace
     environment:
+      - SSH_PORT=${SSH_PORT:-22}
+      - MCP_PORT=${MCP_PORT:-3001}
       - SSH_USERS=dev:devpassword
       - MCP_AUTH_TOKEN=your-secure-token
 ```

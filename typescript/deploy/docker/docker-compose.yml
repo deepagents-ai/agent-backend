@@ -8,7 +8,11 @@
 #
 # Or use `make dev-remote` from monorepo root (recommended for development)
 #
-# CLI defaults if not set in .env: MCP_PORT=3001, SSH_USERS=root:agents
+# Environment variables (set in .env or export):
+#   SSH_HOST_PORT  - Host port for SSH (default: 2222)
+#   SSH_PORT       - Container SSH port (default: 22)
+#   MCP_PORT       - MCP server port (default: 3001)
+#   SSH_USERS      - Comma-separated user:pass pairs (default: root:agents)
 
 services:
   agentbe-daemon:
@@ -18,17 +22,20 @@ services:
     image: agentbe-daemon:latest
     container_name: agentbe-daemon
     ports:
-      - "2222:22" # SSH
-      - "3001:3001" # MCP
+      - "${SSH_HOST_PORT:-2222}:${SSH_PORT:-22}"
+      - "${MCP_PORT:-3001}:${MCP_PORT:-3001}"
     volumes:
       - ./var/workspace:/var/workspace
       # Uncomment for SSH key auth:
       # - ./keys:/keys:ro
     env_file:
       - ../../../.env
+    environment:
+      - SSH_PORT=${SSH_PORT:-22}
+      - MCP_PORT=${MCP_PORT:-3001}
     restart: unless-stopped
     healthcheck:
-      test: [ "CMD", "curl", "-f", "http://localhost:3001/health" ]
+      test: [ "CMD", "curl", "-f", "http://localhost:${MCP_PORT:-3001}/health" ]
       interval: 30s
       timeout: 10s
       retries: 3

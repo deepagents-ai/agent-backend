@@ -13,6 +13,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { execSync, spawn } from 'child_process'
 import express from 'express'
+import { readFileSync } from 'fs'
 import { dirname, join } from 'path'
 import { fileURLToPath } from 'url'
 import { LocalFilesystemBackend } from '../dist/index.js'
@@ -22,6 +23,10 @@ const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const PACKAGE_ROOT = join(__dirname, '..')
 const DEPLOY_DIR = join(PACKAGE_ROOT, 'deploy')
+
+// Read version from package.json
+const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8'))
+const VERSION = pkg.version
 
 // ─────────────────────────────────────────────────────────────────
 // Main Dispatcher
@@ -49,6 +54,11 @@ async function main() {
 
   if (command === 'help' || command === '--help' || command === '-h') {
     printHelp()
+    return
+  }
+
+  if (command === 'version' || command === '--version' || command === '-v') {
+    console.log(`agent-backend v${VERSION}`)
     return
   }
 
@@ -180,7 +190,7 @@ async function handleDaemon(args) {
 
     console.error('')
     console.error('✅ agentbe-daemon is running')
-    console.error(`   SSH Port: 22`)
+    console.error(`   SSH Port: ${config.sshPort}`)
     console.error(`   MCP Port: ${config.mcpPort}`)
     console.error(`   MCP Health: http://localhost:${config.mcpPort}/health`)
     console.error('')
@@ -197,6 +207,7 @@ async function handleDaemon(args) {
 function parseDaemonArgs(args) {
   const config = {
     mcpPort: 3001,
+    sshPort: 22,
     localOnly: false,
     sshUsers: [{ username: 'root', password: 'agents' }],
     sshPublicKey: null,
@@ -235,6 +246,11 @@ function parseDaemonArgs(args) {
 
       case '--mcp-auth-token':
         config.mcpAuthToken = next
+        i++
+        break
+
+      case '--ssh-port':
+        config.sshPort = parseInt(next, 10)
         i++
         break
 
@@ -282,6 +298,11 @@ function parseDaemonArgs(args) {
 
   if (config.mcpPort < 1024 || config.mcpPort > 65535) {
     console.error('❌ Error: --mcp-port must be between 1024-65535')
+    process.exit(1)
+  }
+
+  if (config.sshPort < 1 || config.sshPort > 65535) {
+    console.error('❌ Error: --ssh-port must be between 1-65535')
     process.exit(1)
   }
 
@@ -472,7 +493,8 @@ async function startDaemonHttpServer(config) {
 function startSshDaemon(config) {
   console.error('🚀 Starting SSH daemon...')
 
-  const sshdProcess = spawn('/usr/sbin/sshd', ['-D', '-e'], {
+  const sshdArgs = ['-D', '-e', '-p', String(config.sshPort)]
+  const sshdProcess = spawn('/usr/sbin/sshd', sshdArgs, {
     stdio: ['ignore', 'inherit', 'inherit']
   })
 
@@ -905,7 +927,7 @@ function runCommand(command) {
 
 function printHelp() {
   console.log(`
-🚀 agent-backend - Agent Backend CLI
+🚀 agent-backend v${VERSION} - Agent Backend CLI
 
 USAGE:
   agent-backend <command> [options]
@@ -914,6 +936,7 @@ COMMANDS:
   daemon                 Start agentbe-daemon (MCP + SSH server)
   start-docker [--build] Start Docker container with agentbe-daemon
   stop-docker            Stop Docker container
+  version                Show version
   help                   Show this help message
 
 DAEMON COMMAND:
@@ -944,6 +967,7 @@ DAEMON COMMAND:
     --shell <shell>        Shell to use: bash|sh|auto (default: auto)
 
   Optional - SSH (full mode only):
+    --ssh-port <port>      SSH daemon port (default: 22)
     --ssh-users <users>    Comma-separated user:password pairs (default: root:agents)
                            Example: alice:pass123,bob:pass456
     --ssh-public-key <key> SSH public key to add to authorized_keys
@@ -979,6 +1003,9 @@ EXAMPLES:
   # Full daemon with pubkey auth (Linux only)
   agent-backend daemon --rootDir /var/workspace \\
     --ssh-public-key "ssh-rsa AAAAB3... user@host"
+
+  # Full daemon on alternate SSH port (when port 22 is in use)
+  agent-backend daemon --rootDir /var/workspace --ssh-port 2222
 
   # Start Docker container (includes full daemon with SSH)
   agent-backend start-docker --build

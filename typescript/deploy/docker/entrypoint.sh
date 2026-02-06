@@ -5,8 +5,9 @@
 #
 # Environment variables (all optional, CLI has defaults):
 #   WORKSPACE_ROOT    - Root directory to serve (default: /var/workspace)
-#   MCP_PORT          - MCP server port
+#   MCP_PORT          - MCP server port (default: 3001)
 #   MCP_AUTH_TOKEN    - Bearer token for MCP authentication
+#   SSH_PORT          - SSH daemon port (default: 22)
 #   SSH_USERS         - Comma-separated user:pass pairs
 #   SSH_PUBLIC_KEY    - SSH public key to add to authorized_keys
 #
@@ -35,6 +36,11 @@ fi
 if [ -n "$MCP_AUTH_TOKEN" ]; then
   DAEMON_ARGS+=(--mcp-auth-token "$MCP_AUTH_TOKEN")
   echo "  MCP Auth: enabled"
+fi
+
+if [ -n "$SSH_PORT" ]; then
+  DAEMON_ARGS+=(--ssh-port "$SSH_PORT")
+  echo "  SSH Port: $SSH_PORT"
 fi
 
 if [ -n "$SSH_USERS" ]; then
