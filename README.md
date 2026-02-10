@@ -12,7 +12,7 @@ Give your AI agents a single, unified interface to interact with a filesystem ba
 Also supports MCP (Model Context Protocol) and adapters for plug-and-play with leading AI agent SDKs.
 
 [![npm version](https://badge.fury.io/js/agent-backend.svg)](https://badge.fury.io/js/agent-backend)
-[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
+[![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://choosealicense.com/licenses/apache-2.0/)
 
 ## Why Use a Unified Backend?
 
