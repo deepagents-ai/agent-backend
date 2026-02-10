@@ -61,49 +61,49 @@ export default function BackendSettings() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="p-2 hover:bg-bg-elevated rounded-lg transition-colors"
+        className="p-2 hover:bg-background-elevated rounded-lg transition-colors"
         title="Backend Settings"
       >
-        <Settings className="w-5 h-5 text-text-secondary" />
+        <Settings className="w-5 h-5 text-foreground-secondary" />
       </button>
     )
   }
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-bg-surface rounded-lg shadow-xl w-full max-w-2xl mx-4">
-        <div className="flex items-center justify-between p-4 border-b border-border-subtle">
-          <h2 className="text-lg font-semibold text-text-primary">Backend Settings</h2>
+      <div className="bg-background-surface rounded-lg shadow-xl w-full max-w-2xl mx-4">
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <h2 className="text-lg font-semibold text-foreground">Backend Settings</h2>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1 hover:bg-bg-elevated rounded transition-colors"
+            className="p-1 hover:bg-background-elevated rounded transition-colors"
           >
-            <X className="w-5 h-5 text-text-secondary" />
+            <X className="w-5 h-5 text-foreground-secondary" />
           </button>
         </div>
 
         {loading ? (
           <div className="p-8 flex items-center justify-center">
-            <div className="w-8 h-8 border-2 border-primary-600/30 border-t-primary-600 rounded-full animate-spin" />
+            <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
           </div>
         ) : config ? (
           <div className="p-6 space-y-6">
             {/* Backend Type Selection */}
             <div>
-              <label className="block text-sm font-medium text-text-primary mb-3">
+              <label className="block text-sm font-medium text-foreground mb-3">
                 Backend Type
               </label>
               <div className="grid grid-cols-2 gap-3">
                 <button
                   onClick={() => setConfig({ ...config, type: 'local' })}
                   className={`p-4 rounded-lg border-2 transition-colors ${config.type === 'local'
-                    ? 'border-primary-600 bg-primary-600/10'
-                    : 'border-border-subtle hover:border-border-default'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-foreground-muted'
                     }`}
                 >
-                  <Server className="w-6 h-6 mx-auto mb-2 text-text-primary" />
-                  <div className="text-sm font-medium text-text-primary">Local</div>
-                  <div className="text-xs text-text-tertiary mt-1">Run on this machine</div>
+                  <Server className="w-6 h-6 mx-auto mb-2 text-foreground" />
+                  <div className="text-sm font-medium text-foreground">Local</div>
+                  <div className="text-xs text-foreground-muted mt-1">Run on this machine</div>
                 </button>
                 <button
                   onClick={() => {
@@ -119,13 +119,13 @@ export default function BackendSettings() {
                     }
                   }}
                   className={`p-4 rounded-lg border-2 transition-colors ${config.type === 'remote'
-                    ? 'border-primary-600 bg-primary-600/10'
-                    : 'border-border-subtle hover:border-border-default'
+                    ? 'border-primary bg-primary/10'
+                    : 'border-border hover:border-foreground-muted'
                     }`}
                 >
-                  <Wifi className="w-6 h-6 mx-auto mb-2 text-text-primary" />
-                  <div className="text-sm font-medium text-text-primary">Remote</div>
-                  <div className="text-xs text-text-tertiary mt-1">Connect to remote daemon</div>
+                  <Wifi className="w-6 h-6 mx-auto mb-2 text-foreground" />
+                  <div className="text-sm font-medium text-foreground">Remote</div>
+                  <div className="text-xs text-foreground-muted mt-1">Connect via SSH</div>
                 </button>
               </div>
             </div>
@@ -134,7 +134,7 @@ export default function BackendSettings() {
             {config.type === 'local' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                  <label className="block text-sm font-medium text-foreground-secondary mb-2">
                     Root Directory
                   </label>
                   <input
@@ -146,12 +146,12 @@ export default function BackendSettings() {
                         local: { ...config.local, rootDir: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                     placeholder="/tmp/workspace"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                  <label className="block text-sm font-medium text-foreground-secondary mb-2">
                     Isolation Mode
                   </label>
                   <select
@@ -165,7 +165,7 @@ export default function BackendSettings() {
                         },
                       })
                     }
-                    className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                   >
                     <option value="auto">Auto (detect best)</option>
                     <option value="bwrap">Bubblewrap (Linux only)</option>
@@ -176,11 +176,11 @@ export default function BackendSettings() {
               </div>
             )}
 
-            {/* Remote Backend Settings (SSH-WS) */}
+            {/* Remote Backend Settings */}
             {config.type === 'remote' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                  <label className="block text-sm font-medium text-foreground-secondary mb-2">
                     Host
                   </label>
                   <input
@@ -192,56 +192,111 @@ export default function BackendSettings() {
                         remote: { ...config.remote!, host: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                     placeholder="localhost"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
-                    Port
-                  </label>
-                  <input
-                    type="number"
-                    value={config.remote?.port || ''}
-                    onChange={(e) =>
-                      setConfig({
-                        ...config,
-                        remote: {
-                          ...config.remote!,
-                          port: e.target.value ? parseInt(e.target.value) : undefined,
-                        },
-                      })
-                    }
-                    className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
-                    placeholder="3001"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
-                    Auth Token
-                  </label>
-                  <div className="relative">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-foreground-secondary mb-2">
+                      SSH Port
+                    </label>
                     <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={config.remote?.authToken || ''}
+                      type="number"
+                      value={config.remote?.sshPort || ''}
                       onChange={(e) =>
                         setConfig({
                           ...config,
                           remote: {
                             ...config.remote!,
-                            authToken: e.target.value,
+                            sshPort: e.target.value ? parseInt(e.target.value) : undefined,
                           },
                         })
                       }
-                      className="w-full px-3 py-2 pr-10 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
-                      placeholder="(optional if server has no auth)"
+                      className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                      placeholder="2222"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-foreground-secondary mb-2">
+                      MCP Server Port
+                    </label>
+                    <input
+                      type="number"
+                      value={config.remote?.mcpPort || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          remote: {
+                            ...config.remote!,
+                            mcpPort: e.target.value ? parseInt(e.target.value) : undefined,
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                      placeholder="3001"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground-secondary mb-2">
+                    Username
+                  </label>
+                  <input
+                    type="text"
+                    value={config.remote?.sshAuth?.credentials?.username || ''}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        remote: {
+                          ...config.remote!,
+                          sshAuth: {
+                            type: 'password',
+                            credentials: {
+                              ...config.remote?.sshAuth?.credentials,
+                              username: e.target.value,
+                            },
+                          },
+                        },
+                      })
+                    }
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                    placeholder="root"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-foreground-secondary mb-2">
+                    Password
+                  </label>
+                  <div className="relative">
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      value={config.remote?.sshAuth?.credentials?.password || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          remote: {
+                            ...config.remote!,
+                            sshAuth: {
+                              type: 'password',
+                              credentials: {
+                                ...config.remote?.sshAuth?.credentials,
+                                password: e.target.value,
+                              },
+                            },
+                          },
+                        })
+                      }
+                      className="w-full px-3 py-2 pr-10 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                      placeholder="agents"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-text-tertiary hover:text-text-secondary transition-colors"
+                      className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-foreground-muted hover:text-foreground-secondary transition-colors"
                     >
                       {showPassword ? (
                         <EyeOff className="w-4 h-4" />
@@ -253,7 +308,7 @@ export default function BackendSettings() {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-text-secondary mb-2">
+                  <label className="block text-sm font-medium text-foreground-secondary mb-2">
                     Root Directory (on remote)
                   </label>
                   <input
@@ -265,7 +320,7 @@ export default function BackendSettings() {
                         remote: { ...config.remote!, rootDir: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                     placeholder="/var/workspace"
                   />
                 </div>
@@ -274,7 +329,7 @@ export default function BackendSettings() {
 
             {/* Scope (optional, applies to both local and remote) */}
             <div>
-              <label className="block text-sm font-medium text-text-secondary mb-2">
+              <label className="block text-sm font-medium text-foreground-secondary mb-2">
                 Scope (optional)
               </label>
               <input
@@ -286,27 +341,27 @@ export default function BackendSettings() {
                     scope: e.target.value || undefined,
                   })
                 }
-                className="w-full px-3 py-2 bg-bg-elevated border border-border-subtle rounded-lg text-text-primary focus:outline-none focus:border-primary-600"
+                className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
                 placeholder="e.g., projects/myapp"
               />
-              <p className="mt-1 text-xs text-text-tertiary">
+              <p className="mt-1 text-xs text-foreground-muted">
                 Subdirectory within root to restrict operations to
               </p>
             </div>
           </div>
         ) : null}
 
-        <div className="flex items-center justify-end gap-3 p-4 border-t border-border-subtle">
+        <div className="flex items-center justify-end gap-3 p-4 border-t border-border">
           <button
             onClick={() => setIsOpen(false)}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors"
+            className="px-4 py-2 text-sm text-foreground-secondary hover:text-foreground transition-colors"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving}
-            className="px-4 py-2 bg-primary-600 hover:bg-primary-700 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
+            className="px-4 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg text-white text-sm font-medium transition-colors"
           >
             {saving ? 'Saving...' : 'Save & Restart'}
           </button>
