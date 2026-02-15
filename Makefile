@@ -1,4 +1,4 @@
-.PHONY: help install build test typecheck lint clean dev publish start-daemon stop-daemon sync-assets
+.PHONY: help install build test typecheck lint clean dev dev-local publish start-daemon stop-daemon sync-assets nextjs tsbasic
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -128,34 +128,56 @@ lint-fix: ## Auto-fix linting issues
 
 ##@ Development
 
-dev: sync-assets ## Start all dev processes with interactive TUI (local mode)
+dev: sync-assets ## Start dev TUI with Docker daemon (simulates remote)
 	@command -v mprocs >/dev/null 2>&1 || { \
 		echo "Error: mprocs not installed. Run 'make install' first."; \
 		exit 1; \
 	}
-	mprocs
-
-dev-remote: sync-assets ## Start dev with Docker-based daemon
-	@command -v mprocs >/dev/null 2>&1 || { \
-		echo "Error: mprocs not installed. Run 'make install' first."; \
-		exit 1; \
-	}
-	@command -v docker >/dev/null 2>&1 || { \
-		echo "Error: Docker not installed"; \
-		echo "Install: https://docs.docker.com/get-docker/"; \
-		exit 1; \
-	}
-	@mkdir -p tmp/deploy
-	@if ! docker images | grep -q "agentbe-daemon.*latest"; then \
-		echo "Docker image not found. Building agentbe-daemon:latest..."; \
-		$(MAKE) docker-build; \
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "Warning: Docker not installed — falling back to local mode."; \
+		echo "Install Docker: https://docs.docker.com/get-docker/"; \
+		LOCAL=1 mprocs; \
+	else \
+		mkdir -p tmp/deploy; \
+		if ! docker images | grep -q "agentbe-daemon.*latest"; then \
+			echo "Docker image not found. Building agentbe-daemon:latest..."; \
+			$(MAKE) docker-build; \
+		fi; \
+		mprocs; \
 	fi
-	REMOTE=1 mprocs
+
+dev-local: ## Start dev TUI with local daemon (no Docker)
+	@command -v mprocs >/dev/null 2>&1 || { \
+		echo "Error: mprocs not installed. Run 'make install' first."; \
+		exit 1; \
+	}
+	LOCAL=1 mprocs
+
+nextjs: sync-assets build-typescript ## Start dev TUI with NextJS example app
+	@command -v mprocs >/dev/null 2>&1 || { \
+		echo "Error: mprocs not installed. Run 'make install' first."; \
+		exit 1; \
+	}
+	@if ! command -v docker >/dev/null 2>&1; then \
+		echo "Warning: Docker not installed — using local daemon."; \
+		NEXTJS=1 LOCAL=1 mprocs; \
+	else \
+		mkdir -p tmp/deploy; \
+		if ! docker images | grep -q "agentbe-daemon.*latest"; then \
+			echo "Docker image not found. Building agentbe-daemon:latest..."; \
+			$(MAKE) docker-build; \
+		fi; \
+		NEXTJS=1 mprocs; \
+	fi
+
+tsbasic: build-typescript ## Run the TSBasic CLI example
+	cd examples/TSBasic && npx tsx index.ts
 
 clean: ## Clean build artifacts and dependencies
 	@echo "Cleaning TypeScript packages..."
 	rm -rf typescript/dist typescript/node_modules
 	rm -rf examples/NextJS/dist examples/NextJS/.next examples/NextJS/node_modules
+	rm -rf examples/TSBasic/node_modules
 	rm -rf node_modules
 	@echo "Cleaning Python package..."
 	@if [ -d "python" ]; then \

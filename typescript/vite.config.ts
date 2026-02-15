@@ -19,6 +19,7 @@ export default defineConfig({
         'adapters/index': path.resolve(__dirname, 'src/adapters/index.ts'),
         'mcp/index': path.resolve(__dirname, 'src/mcp/index.ts'),
         'server/index': path.resolve(__dirname, 'src/server/index.ts'),
+        cli: path.resolve(__dirname, 'src/cli.ts'),
       },
       formats: ['es', 'cjs']
     },

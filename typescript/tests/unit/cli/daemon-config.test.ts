@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, expect, it } from 'vitest'
 import { parseDaemonArgs, validateDaemonConfig, type DaemonConfig } from '../../../src/cli/daemon-config.js'
 
 describe('Daemon Config Parsing', () => {
@@ -247,7 +247,7 @@ describe('Daemon Config Parsing', () => {
 
       it('should parse local-only mode config', () => {
         const result = parseDaemonArgs([
-          '--rootDir', '/tmp/workspace',
+          '--rootDir', '/tmp/agentbe-workspace',
           '--local-only',
           '--isolation', 'none'
         ])
@@ -259,13 +259,13 @@ describe('Daemon Config Parsing', () => {
 
       it('should parse local-only mode with scopePath', () => {
         const result = parseDaemonArgs([
-          '--rootDir', '/tmp/workspace',
+          '--rootDir', '/tmp/agentbe-workspace',
           '--scopePath', 'users/user123',
           '--local-only'
         ])
 
         expect(result.error).toBeUndefined()
-        expect(result.config?.rootDir).toBe('/tmp/workspace')
+        expect(result.config?.rootDir).toBe('/tmp/agentbe-workspace')
         expect(result.config?.scopePath).toBe('users/user123')
         expect(result.config?.localOnly).toBe(true)
       })

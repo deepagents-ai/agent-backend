@@ -11,10 +11,10 @@ The **agentbe-daemon** is the server component that provides MCP (Model Context 
 
 ```bash
 # Start daemon in local-only mode
-agent-backend daemon --rootDir /tmp/workspace --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
 
 # With static scoping
-agent-backend daemon --rootDir /tmp/workspace --scopePath users/user1 --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --scopePath users/user1 --local-only
 ```
 
 ### Production (HTTP + SSH mode)
@@ -36,10 +36,10 @@ Scoping restricts all operations to a subdirectory within `rootDir`. This is ess
 Set scope at daemon startup using `--scopePath`:
 
 ```bash
-agent-backend daemon --rootDir /tmp/workspace --scopePath users/user1 --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --scopePath users/user1 --local-only
 ```
 
-All operations are now restricted to `/tmp/workspace/users/user1/`.
+All operations are now restricted to `/tmp/agentbe-workspace/users/user1/`.
 
 **Use cases:**
 - Local development with a specific user context
@@ -81,10 +81,10 @@ There are two ways to achieve the same effective path:
 
 ```bash
 # Option 1: Combined rootDir (no scoping)
-agent-backend daemon --rootDir /tmp/workspace/users/user1 --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace/users/user1 --local-only
 
 # Option 2: Separate rootDir + scopePath (with scoping)
-agent-backend daemon --rootDir /tmp/workspace --scopePath users/user1 --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --scopePath users/user1 --local-only
 ```
 
 **Key difference:** With Option 2, the daemon creates a scoped backend which provides additional isolation guarantees and cleaner path handling.
@@ -173,13 +173,13 @@ Used by `RemoteFilesystemBackend` for production:
 
 ```bash
 # Simple local development
-agent-backend daemon --rootDir /tmp/workspace --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
 
 # With software isolation (safer command execution)
-agent-backend daemon --rootDir /tmp/workspace --local-only --isolation software
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only --isolation software
 
 # Scoped to a specific user directory
-agent-backend daemon --rootDir /tmp/workspace --scopePath users/testuser --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --scopePath users/testuser --local-only
 ```
 
 ### Production Deployment
@@ -258,7 +258,7 @@ The client's `X-Root-Dir` header doesn't match the daemon's `--rootDir`. Ensure 
 Full daemon mode (with SSH) requires Linux. Use `--local-only` for local development:
 
 ```bash
-agent-backend daemon --rootDir /tmp/workspace --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
 ```
 
 ### Permission denied errors

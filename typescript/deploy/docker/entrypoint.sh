@@ -99,13 +99,11 @@ echo ""
 # Ensure we're in a valid directory
 cd "$WORKSPACE_ROOT"
 
-# Use local mounted build with nodemon for hot-reload in dev mode
-if [ "$USE_LOCAL_BUILD" = "1" ] && [ -d /app/agent-backend ]; then
-  echo "🔥 Hot-reload enabled (watching /app/agent-backend)"
-  exec npx nodemon \
-    --watch /app/agent-backend \
-    --ext js \
-    --exec "cd $WORKSPACE_ROOT && node /app/agent-backend/bin/agent-backend.js daemon ${DAEMON_ARGS[*]}"
+# Use local mounted source with tsx for hot-reload in dev mode
+if [ "$USE_LOCAL_BUILD" = "1" ] && [ -d /app/agent-backend/src ]; then
+  echo "🔥 Hot-reload enabled (tsx --watch on /app/agent-backend/src)"
+  cd "$WORKSPACE_ROOT"
+  exec tsx --watch /app/agent-backend/src/cli.ts daemon "${DAEMON_ARGS[@]}"
 else
   exec agent-backend daemon "${DAEMON_ARGS[@]}"
 fi

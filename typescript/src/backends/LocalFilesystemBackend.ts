@@ -229,10 +229,10 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     }
 
     // Calculate sandbox-relative path
-    // Example: rootDir='/tmp/workspace', cwd='/tmp/workspace/users/user1'
-    // Result: relativeCwd='users/user1', bwrapCwd='/tmp/workspace/users/user1'
+    // Example: rootDir='/tmp/agentbe-workspace', cwd='/tmp/agentbe-workspace/users/user1'
+    // Result: relativeCwd='users/user1', bwrapCwd='/tmp/agentbe-workspace/users/user1'
     const relativeCwd = path.relative(this.rootDir, normalizedCwd)
-    const bwrapCwd = relativeCwd ? `/tmp/workspace/${relativeCwd}` : '/tmp/workspace'
+    const bwrapCwd = relativeCwd ? `/tmp/agentbe-workspace/${relativeCwd}` : '/tmp/agentbe-workspace'
 
     // Build environment with HOME set to sandbox cwd
     const env = this.buildEnvironment(bwrapCwd, options?.env)
@@ -246,7 +246,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       '--ro-bind', '/sbin', '/sbin',
 
       // Workspace (writable) - this is the ONLY writable mount outside /tmp
-      '--bind', this.rootDir, '/tmp/workspace',
+      '--bind', this.rootDir, '/tmp/agentbe-workspace',
 
       // Set working directory in sandbox
       '--chdir', bwrapCwd,

@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
-  getDefaultConfig,
-  DEFAULT_LOCAL_CONFIG,
-  DEFAULT_REMOTE_CONFIG,
-  COOKIE_NAME,
-  type BackendConfig
+    COOKIE_NAME,
+    DEFAULT_LOCAL_CONFIG,
+    DEFAULT_REMOTE_CONFIG,
+    getDefaultConfig,
+    type BackendConfig
 } from '../app/lib/backend-config-types'
 
 describe('Backend Config Types', () => {
@@ -15,7 +15,7 @@ describe('Backend Config Types', () => {
 
     it('should have correct DEFAULT_LOCAL_CONFIG', () => {
       expect(DEFAULT_LOCAL_CONFIG).toEqual({
-        rootDir: '/tmp/workspace',
+        rootDir: '/tmp/agentbe-workspace',
         isolation: 'software',
       })
     })

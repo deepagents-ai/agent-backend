@@ -1,12 +1,20 @@
 # Agent Backend Development
 #
+# Processes:
+#   agentbe-local   - Daemon on host via tsx --watch (no Docker)
+#   agentbe-daemon  - Daemon in Docker container via tsx --watch (simulates remote)
+#   nextjs          - NextJS example app
+#
 # Usage:
-#   make dev          - Local development (TypeScript + NextJS)
-#   make dev-remote   - Remote testing (+ Docker daemon)
+#   make dev                 - Docker daemon (default)
+#   make dev-local           - Local daemon (no Docker)
+#   make example-nextjs      - Docker daemon + NextJS
 #
 # Or directly:
-#   mprocs            - Local mode
-#   REMOTE=1 mprocs   - With Docker daemon
+#   mprocs                           - agentbe-daemon (Docker)
+#   LOCAL=1 mprocs                   - agentbe-local (no Docker)
+#   NEXTJS=1 mprocs                  - agentbe-daemon + NextJS
+#   LOCAL=1 NEXTJS=1 mprocs          - agentbe-local + NextJS
 #
 # TUI shortcuts:
 #   Tab/Shift+Tab - cycle processes
@@ -16,19 +24,26 @@
 #   q - quit
 
 procs:
-  typescript-watch:
-    cmd: ["pnpm", "run", "dev"]
-    cwd: "typescript"
+  # Local daemon — runs directly on host, no Docker
+  # Enable with LOCAL=1
+  agentbe-local:
+    shell: |
+      [ -z "$LOCAL" ] && echo "Skipped (set LOCAL=1 to enable)" && exit 0
+      echo "Starting agentbe-daemon locally (tsx --watch)..."
+      cd typescript
+      exec npx tsx --watch src/cli.ts daemon \
+        --rootDir /tmp/agent-backend-workspace \
+        --local-only
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"
 
-  # Docker daemon for remote backend testing
-  # Only runs when REMOTE=1 is set
-  # Does initial pnpm deploy, then mounts it with nodemon for hot-reload
+  # Docker daemon — simulates remote deployment
+  # Runs by default; skip with LOCAL=1
+  # Mounts TypeScript source into container; tsx --watch handles hot-reload
   agentbe-daemon:
     shell: |
-      [ -z "$REMOTE" ] && echo "Skipped (set REMOTE=1 to enable)" && exit 0
+      [ "$LOCAL" = "1" ] && echo "Skipped (LOCAL=1, using agentbe-local)" && exit 0
 
       # Trap signals to properly stop container
       cleanup() {
@@ -42,7 +57,7 @@ procs:
       docker stop agentbe-daemon 2>/dev/null || true
       docker rm agentbe-daemon 2>/dev/null || true
 
-      # Do initial deploy (sets up node_modules)
+      # Do initial deploy (sets up node_modules for the container)
       echo "Creating standalone deploy folder..."
       rm -rf tmp/deploy
       pnpm --filter=agent-backend deploy --prod --legacy tmp/deploy
@@ -50,12 +65,13 @@ procs:
       # Start container in background so trap can catch signals
       ENV_FILE=".env.example"
       [ -f ".env" ] && ENV_FILE=".env"
-      echo "Starting container..."
+      echo "Starting container (tsx --watch on mounted source)..."
       docker run --rm \
         --name agentbe-daemon \
         -p 3001:3001 \
         -p 2222:22 \
         -v "$(pwd)/tmp/deploy:/app/agent-backend:ro" \
+        -v "$(pwd)/typescript/src:/app/agent-backend/src:ro" \
         -e USE_LOCAL_BUILD=1 \
         --env-file "$ENV_FILE" \
         agentbe-daemon:latest &
@@ -65,36 +81,14 @@ procs:
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"
-    depends_on:
-      typescript-watch:
-        condition: "running"
 
-  # Syncs typescript dist changes to deploy folder for hot-reload
-  # Only runs when REMOTE=1 is set
-  deploy-sync:
-    shell: |
-      [ -z "$REMOTE" ] && echo "Skipped (set REMOTE=1 to enable)" && exit 0
-      # Wait for initial deploy
-      while [ ! -d tmp/deploy/dist ]; do sleep 1; done
-      echo "Watching typescript/dist for changes..."
-      npx nodemon \
-        --watch typescript/dist \
-        --ext js,cjs,json \
-        --delay 1 \
-        --exec "rsync -av --delete typescript/dist/ tmp/deploy/dist/"
-    stop: "SIGTERM"
-    env:
-      FORCE_COLOR: "1"
-    depends_on:
-      agentbe-daemon:
-        condition: "running"
-
+  # NextJS example app
+  # Skipped by default; enable with NEXTJS=1
   nextjs:
-    cmd: ["pnpm", "run", "dev"]
+    shell: |
+      [ -z "$NEXTJS" ] && echo "Skipped (set NEXTJS=1 to enable)" && exit 0
+      exec pnpm run dev
     cwd: "examples/NextJS"
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"
-    depends_on:
-      typescript-watch:
-        condition: "running"

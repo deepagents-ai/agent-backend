@@ -1,6 +1,6 @@
 import * as child_process from 'child_process'
-import * as fs from 'fs/promises'
 import * as fsSync from 'fs'
+import * as fs from 'fs/promises'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { LocalFilesystemBackend } from '../../../src/backends/LocalFilesystemBackend.js'
 import { DangerousOperationError } from '../../../src/types.js'
@@ -377,8 +377,8 @@ describe('LocalFilesystemBackend (Unit Tests)', () => {
       expect(child_process.spawn).toHaveBeenCalledWith(
         'bwrap',
         expect.arrayContaining([
-          '--bind', '/test/workspace', '/tmp/workspace',
-          '--chdir', '/tmp/workspace',
+          '--bind', '/test/workspace', '/tmp/agentbe-workspace',
+          '--chdir', '/tmp/agentbe-workspace',
           '--unshare-all',
           '--share-net',
           '--die-with-parent',
@@ -401,7 +401,7 @@ describe('LocalFilesystemBackend (Unit Tests)', () => {
       const chdirIndex = bwrapArgs.indexOf('--chdir')
 
       expect(chdirIndex).toBeGreaterThan(-1)
-      expect(bwrapArgs[chdirIndex + 1]).toBe('/tmp/workspace/subdir')
+      expect(bwrapArgs[chdirIndex + 1]).toBe('/tmp/agentbe-workspace/subdir')
     })
 
     it('should include system directories as read-only', async () => {

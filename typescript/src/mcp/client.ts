@@ -21,7 +21,7 @@ export interface AgentBeMCPClientOptions {
  * const mcpClient = await createAgentBeMCPClient({
  *   url: 'http://backend.example.com:3000',
  *   authToken: process.env.MCP_AUTH_TOKEN,
- *   rootDir: '/tmp/workspace',
+ *   rootDir: '/tmp/agentbe-workspace',
  *   scopePath: 'users/123',
  * })
  *
@@ -50,7 +50,7 @@ export interface AgentBeMCPClientOptions {
  * const transport = createAgentBeMCPTransport({
  *   url: 'http://your-server:3001',
  *   authToken: 'your-token',
- *   rootDir: '/tmp/workspace',
+ *   rootDir: '/tmp/agentbe-workspace',
  *   scopePath: 'users/123',
  * })
  *
