@@ -30,7 +30,7 @@ Agent Backend achieves the latter, with a single API for filesystem operations. 
 function getBackend() {
   if (environment.isDevelopment) {
     return new LocalFilesystemBackend({
-      rootDir: '/tmp/workspace'
+      rootDir: '/tmp/agentbe-workspace'
     });
   } else {
     new RemoteFilesystemBackend({
@@ -149,7 +149,7 @@ Execute code and manage files locally:
 import { LocalFilesystemBackend } from 'agent-backend'
 
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace'
+  rootDir: '/tmp/agentbe-workspace'
 })
 
 await backend.exec('git clone https://github.com/user/repo.git .')
@@ -186,7 +186,7 @@ Use Model Context Protocol for standardized agent integration. Each backend offe
 
 ```typescript
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace'
+  rootDir: '/tmp/agentbe-workspace'
 })
 
 // Get MCP client
@@ -343,7 +343,7 @@ import { generateText } from 'ai'
 import { openai } from '@ai-sdk/openai'
 
 // Create backend and adapter
-const backend = new LocalFilesystemBackend({ rootDir: '/tmp/workspace' })
+const backend = new LocalFilesystemBackend({ rootDir: '/tmp/agentbe-workspace' })
 const adapter = new VercelAIAdapter(backend)
 
 // Get transport and create AI SDK MCP client
@@ -443,10 +443,10 @@ For local development without Docker (works on macOS/Windows):
 
 ```bash
 # Start agentbe-daemon in local-only mode (stdio MCP, no SSH)
-agent-backend daemon --rootDir /tmp/workspace --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
 
 # With static scoping (all operations restricted to users/user1/)
-agent-backend daemon --rootDir /tmp/workspace --scopePath users/user1 --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --scopePath users/user1 --local-only
 ```
 
 ### Daemon Scoping
@@ -504,7 +504,7 @@ const tarball = await backend.exec('tar -czf - .', { encoding: 'buffer' })
 
 ```typescript
 const backend = new RemoteFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   host: 'server.com',
   sshAuth: { ... },
   operationTimeoutMs: 300000,  // 5 minutes
@@ -520,7 +520,7 @@ const backend = new RemoteFilesystemBackend({
 
 ```typescript
 const sandbox = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   isolation: 'auto'
 })
 
@@ -597,7 +597,7 @@ import type {
 } from 'agent-backend'
 
 const backend: LocalFilesystemBackend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace'
+  rootDir: '/tmp/agentbe-workspace'
 })
 
 const scopedBackend: ScopedBackend<LocalFilesystemBackend> = backend.scope('project')

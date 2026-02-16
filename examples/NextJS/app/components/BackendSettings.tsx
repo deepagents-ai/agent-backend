@@ -147,7 +147,7 @@ export default function BackendSettings() {
                       })
                     }
                     className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
-                    placeholder="/tmp/workspace"
+                    placeholder="/tmp/agentbe-workspace"
                   />
                 </div>
                 <div>
@@ -160,7 +160,7 @@ export default function BackendSettings() {
                       setConfig({
                         ...config,
                         local: {
-                          rootDir: config.local?.rootDir || '/tmp/workspace',
+                          rootDir: config.local?.rootDir || '/tmp/agentbe-workspace',
                           isolation: e.target.value as 'auto' | 'bwrap' | 'software' | 'none',
                         },
                       })

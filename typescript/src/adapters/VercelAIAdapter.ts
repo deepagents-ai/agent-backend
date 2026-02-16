@@ -8,7 +8,7 @@
  * ```typescript
  * import { LocalFilesystemBackend, VercelAIAdapter } from 'agent-backend'
  *
- * const backend = new LocalFilesystemBackend({ rootDir: '/tmp/workspace' })
+ * const backend = new LocalFilesystemBackend({ rootDir: '/tmp/agentbe-workspace' })
  * const adapter = new VercelAIAdapter(backend)
  *
  * const mcpClient = await adapter.getMCPClient()

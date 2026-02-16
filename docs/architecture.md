@@ -108,7 +108,7 @@ graph TB
             MCP_Server["<b>MCP Server</b><br/>port 3001"]
         end
 
-        FS[("<b>Local Filesystem</b><br/>/tmp/workspace")]
+        FS[("<b>Local Filesystem</b><br/>/tmp/agentbe-workspace")]
 
         App -.->|uses| LFB
         LFB -.->|creates| MCP_HTTP
@@ -142,18 +142,18 @@ sequenceDiagram
     participant FS as Filesystem
 
     Note over App,FS: Initialization
-    App->>LFB: new LocalFilesystemBackend({rootDir: '/tmp/workspace'})
-    App->>Daemon: Start: agent-backend daemon --rootDir /tmp/workspace --local-only
+    App->>LFB: new LocalFilesystemBackend({rootDir: '/tmp/agentbe-workspace'})
+    App->>Daemon: Start: agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
     Daemon-->>Daemon: MCP Server listening on :3001
 
     Note over App,FS: Direct Backend Operations (no MCP)
     App->>LFB: write('config.json', '{...}')
-    LFB->>FS: Node.js fs.writeFile('/tmp/workspace/config.json')
+    LFB->>FS: Node.js fs.writeFile('/tmp/agentbe-workspace/config.json')
     FS-->>LFB: Success
     LFB-->>App: Success
 
     App->>LFB: read('config.json')
-    LFB->>FS: Node.js fs.readFile('/tmp/workspace/config.json')
+    LFB->>FS: Node.js fs.readFile('/tmp/agentbe-workspace/config.json')
     FS-->>LFB: File contents
     LFB-->>App: File contents
 
@@ -176,7 +176,7 @@ sequenceDiagram
     Note over App,MCP: Pass tools to AI agent or invoke manually
     App->>MCP: callTool({name: 'exec', arguments: {command: 'npm test'}})
     MCP->>Daemon: POST /mcp - MCP tool call
-    Daemon->>FS: spawn('npm test') in /tmp/workspace
+    Daemon->>FS: spawn('npm test') in /tmp/agentbe-workspace
     FS-->>Daemon: stdout/stderr/exitCode
     Daemon-->>MCP: MCP tool result {content: [...]}
     MCP-->>App: Tool result
@@ -187,7 +187,7 @@ sequenceDiagram
 **Start the daemon:**
 ```bash
 # Terminal 1: Start MCP server (works on macOS/Windows)
-agent-backend daemon --rootDir /tmp/workspace --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
 ```
 
 **Application code:**
@@ -195,7 +195,7 @@ agent-backend daemon --rootDir /tmp/workspace --local-only
 import { LocalFilesystemBackend } from 'agent-backend'
 
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   isolation: 'auto',
   preventDangerous: true
 })
@@ -474,20 +474,20 @@ graph TB
 ```typescript
 // Base backend
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace'
+  rootDir: '/tmp/agentbe-workspace'
 })
 
 // Create isolated scopes per user
 const aliceBackend = backend.scope('users/alice')
 const bobBackend = backend.scope('users/bob')
 
-// Alice can only access /tmp/workspace/users/alice
+// Alice can only access /tmp/agentbe-workspace/users/alice
 await aliceBackend.write('private.txt', 'Alice data')
-await aliceBackend.exec('npm install')  // Runs in /tmp/workspace/users/alice
+await aliceBackend.exec('npm install')  // Runs in /tmp/agentbe-workspace/users/alice
 
-// Bob can only access /tmp/workspace/users/bob
+// Bob can only access /tmp/agentbe-workspace/users/bob
 await bobBackend.write('private.txt', 'Bob data')
-await bobBackend.exec('npm install')  // Runs in /tmp/workspace/users/bob
+await bobBackend.exec('npm install')  // Runs in /tmp/agentbe-workspace/users/bob
 
 // Path escape attempts are blocked
 await aliceBackend.write('../bob/steal.txt', 'data')  // Throws PathEscapeError

@@ -64,7 +64,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
 
 # Install global npm packages (non-versioned)
 RUN npm i -g pnpm && \
-    npm i -g nodemon && \
+    npm i -g tsx && \
     npm i -g @aspects-ai/workspace-cli && \
     npm i -g @remotion/cli@4.0.356
 

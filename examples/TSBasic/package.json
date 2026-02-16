@@ -1,0 +1,19 @@
+{
+  "name": "tsbasic-agent-backend-example",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx index.ts"
+  },
+  "dependencies": {
+    "agent-backend": "workspace:*",
+    "@ai-sdk/mcp": "^1.0.18",
+    "@openrouter/ai-sdk-provider": "latest",
+    "ai": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.10",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.2"
+  }
+}

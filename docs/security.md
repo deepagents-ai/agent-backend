@@ -44,17 +44,17 @@ graph LR
 **Example:**
 ```typescript
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace/users/alice'
+  rootDir: '/tmp/agentbe-workspace/users/alice'
 })
 
 // ✅ Allowed
-await backend.write('data.txt', 'content')           // /tmp/workspace/users/alice/data.txt
-await backend.write('project/config.json', '{}')     // /tmp/workspace/users/alice/project/config.json
-await backend.write('/etc/config', 'data')           // Treated as relative: /tmp/workspace/users/alice/etc/config
+await backend.write('data.txt', 'content')           // /tmp/agentbe-workspace/users/alice/data.txt
+await backend.write('project/config.json', '{}')     // /tmp/agentbe-workspace/users/alice/project/config.json
+await backend.write('/etc/config', 'data')           // Treated as relative: /tmp/agentbe-workspace/users/alice/etc/config
 
 // ❌ Blocked - Throws PathEscapeError
-await backend.write('../bob/secrets.txt', 'data')    // Escapes to /tmp/workspace/users/bob
-await backend.write('../../root/.ssh/keys', 'data')  // Escapes to /tmp/workspace
+await backend.write('../bob/secrets.txt', 'data')    // Escapes to /tmp/agentbe-workspace/users/bob
+await backend.write('../../root/.ssh/keys', 'data')  // Escapes to /tmp/agentbe-workspace
 ```
 
 ### Scoped Backends
@@ -63,14 +63,14 @@ When using `.scope()`, path validation is applied at each scope level:
 
 ```typescript
 const baseBackend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace'
+  rootDir: '/tmp/agentbe-workspace'
 })
 
 const aliceBackend = baseBackend.scope('users/alice')
 const projectBackend = aliceBackend.scope('project-a')
 
-// projectBackend can only access /tmp/workspace/users/alice/project-a
-await projectBackend.write('config.json', '{}')      // ✅ /tmp/workspace/users/alice/project-a/config.json
+// projectBackend can only access /tmp/agentbe-workspace/users/alice/project-a
+await projectBackend.write('config.json', '{}')      // ✅ /tmp/agentbe-workspace/users/alice/project-a/config.json
 await projectBackend.write('../../../etc', 'data')   // ❌ PathEscapeError - escapes project-a scope
 ```
 
@@ -171,7 +171,7 @@ When `preventDangerous: true` (default), these patterns are rejected:
 **Example:**
 ```typescript
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   isolation: 'auto',
   preventDangerous: true
 })
@@ -207,7 +207,7 @@ await backend.exec('ls; cat /etc/passwd')
 **Example:**
 ```bash
 # No auth needed for stdio
-agent-backend daemon --rootDir /tmp/workspace --local-only
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only
 
 # Optional auth for HTTP
 agent-backend daemon --rootDir /var/workspace --mcp-auth-token dev-secret-123
@@ -290,7 +290,7 @@ server {
 const backend = new LocalFilesystemBackend({ rootDir: '/' })
 
 // ✅ Limit to workspace
-const backend = new LocalFilesystemBackend({ rootDir: '/tmp/workspace' })
+const backend = new LocalFilesystemBackend({ rootDir: '/tmp/agentbe-workspace' })
 
 // ✅ Further scope per user
 const userBackend = backend.scope(`users/${userId}`)
@@ -301,7 +301,7 @@ const userBackend = backend.scope(`users/${userId}`)
 **Default configuration (recommended):**
 ```typescript
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   isolation: 'auto',        // Use best available isolation
   preventDangerous: true    // Block dangerous commands
 })
@@ -326,12 +326,12 @@ const backend = new LocalFilesystemBackend({
 import { ConsoleOperationsLogger } from 'agent-backend'
 
 const backend = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   operationsLogger: new ConsoleOperationsLogger()
 })
 
 // Logs all operations:
-// [2024-01-15T10:30:00.000Z] READ /tmp/workspace/config.json
+// [2024-01-15T10:30:00.000Z] READ /tmp/agentbe-workspace/config.json
 // [2024-01-15T10:30:01.000Z] EXEC npm install
 ```
 

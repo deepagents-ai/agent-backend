@@ -25,10 +25,10 @@ pnpm test            # Run tests in watch mode
 
 ```bash
 # Local-only mode (works on macOS/Windows, no SSH)
-pnpm run build && node bin/agent-backend.js daemon --rootDir /tmp/workspace --local-only
+pnpm run build && node bin/agent-backend.js daemon --rootDir /tmp/agentbe-workspace --local-only
 
 # Local-only mode with custom port
-agent-backend daemon --rootDir /tmp/workspace --local-only --mcp-port 3456
+agent-backend daemon --rootDir /tmp/agentbe-workspace --local-only --mcp-port 3456
 
 # Full daemon mode (Linux only, requires root)
 agent-backend daemon --rootDir /var/workspace --mcp-auth-token <token>
@@ -137,7 +137,7 @@ tests/unit/                     # Unit tests (Vitest)
 import { LocalFilesystemBackend } from 'agent-backend'
 
 const fs = new LocalFilesystemBackend({
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   isolation: 'auto',           // bwrap or software
   preventDangerous: true       // block dangerous commands
 })

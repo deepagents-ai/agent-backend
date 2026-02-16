@@ -10,7 +10,7 @@ export type BackendConfig = {
 
 // Default configurations matching daemon defaults
 export const DEFAULT_LOCAL_CONFIG: LocalFilesystemBackendConfig = {
-  rootDir: '/tmp/workspace',
+  rootDir: '/tmp/agentbe-workspace',
   isolation: 'software',
 }
 

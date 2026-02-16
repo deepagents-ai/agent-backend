@@ -21,7 +21,7 @@ export interface LocalMCPTransportOptions {
  * import { createLocalMCPTransportOptions } from 'agent-backend'
  *
  * const options = createLocalMCPTransportOptions({
- *   rootDir: '/tmp/workspace',
+ *   rootDir: '/tmp/agentbe-workspace',
  *   isolation: 'software',
  * })
  * const transport = new StdioClientTransport(options)

@@ -69,7 +69,7 @@ class BackendManager {
       })
     } else {
       const local = config.local || {
-        rootDir: '/tmp/workspace',
+        rootDir: '/tmp/agentbe-workspace',
         isolation: 'software',
       }
       console.log('[BackendManager] Creating LocalFilesystemBackend with rootDir:', local.rootDir)

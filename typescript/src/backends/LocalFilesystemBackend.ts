@@ -14,8 +14,9 @@ import type { ExecOptions, LocalFilesystemBackendConfig, ReadOptions, ScopeConfi
 import { validateLocalFilesystemBackendConfig } from './config.js'
 import { validateWithinBoundary } from './pathValidation.js'
 import { ScopedFilesystemBackend } from './ScopedFilesystemBackend.js'
-import type { Backend, FileBasedBackend, ScopedBackend } from './types.js'
-import { BackendType } from './types.js'
+import { ConnectionStatusManager } from './ConnectionStatusManager.js'
+import type { Backend, FileBasedBackend, ScopedBackend, StatusChangeCallback, Unsubscribe } from './types.js'
+import { BackendType, ConnectionStatus } from './types.js'
 
 /**
  * Local filesystem backend implementation
@@ -25,7 +26,8 @@ import { BackendType } from './types.js'
 export class LocalFilesystemBackend implements FileBasedBackend {
   readonly type = BackendType.LOCAL_FILESYSTEM
   readonly rootDir: string
-  readonly connected = true
+
+  private readonly statusManager = new ConnectionStatusManager(ConnectionStatus.CONNECTED)
 
   private readonly shell: string
   private readonly isolation: 'auto' | 'bwrap' | 'software' | 'none'
@@ -36,6 +38,14 @@ export class LocalFilesystemBackend implements FileBasedBackend {
 
   /** Track active scoped backends for reference counting */
   private readonly _activeScopes = new Set<ScopedFilesystemBackend>()
+
+  get status(): ConnectionStatus {
+    return this.statusManager.status
+  }
+
+  onStatusChange(cb: StatusChangeCallback): Unsubscribe {
+    return this.statusManager.onStatusChange(cb)
+  }
 
   constructor(config: LocalFilesystemBackendConfig) {
     validateLocalFilesystemBackendConfig(config)
@@ -229,10 +239,10 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     }
 
     // Calculate sandbox-relative path
-    // Example: rootDir='/tmp/workspace', cwd='/tmp/workspace/users/user1'
-    // Result: relativeCwd='users/user1', bwrapCwd='/tmp/workspace/users/user1'
+    // Example: rootDir='/tmp/agentbe-workspace', cwd='/tmp/agentbe-workspace/users/user1'
+    // Result: relativeCwd='users/user1', bwrapCwd='/tmp/agentbe-workspace/users/user1'
     const relativeCwd = path.relative(this.rootDir, normalizedCwd)
-    const bwrapCwd = relativeCwd ? `/tmp/workspace/${relativeCwd}` : '/tmp/workspace'
+    const bwrapCwd = relativeCwd ? `/tmp/agentbe-workspace/${relativeCwd}` : '/tmp/agentbe-workspace'
 
     // Build environment with HOME set to sandbox cwd
     const env = this.buildEnvironment(bwrapCwd, options?.env)
@@ -246,7 +256,7 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       '--ro-bind', '/sbin', '/sbin',
 
       // Workspace (writable) - this is the ONLY writable mount outside /tmp
-      '--bind', this.rootDir, '/tmp/workspace',
+      '--bind', this.rootDir, '/tmp/agentbe-workspace',
 
       // Set working directory in sandbox
       '--chdir', bwrapCwd,
@@ -713,6 +723,8 @@ export class LocalFilesystemBackend implements FileBasedBackend {
       getLogger().debug(`LocalFilesystemBackend destroying with ${this._activeScopes.size} active scopes`)
       this._activeScopes.clear()
     }
+    this.statusManager.setStatus(ConnectionStatus.DESTROYED)
+    this.statusManager.clearListeners()
     getLogger().debug(`LocalFilesystemBackend destroyed for root: ${this.rootDir}`)
   }
 }

@@ -103,7 +103,7 @@ The app uses `VercelAIAdapter` to automatically create the right MCP transport b
 NextJS App
   └── VercelAIAdapter(LocalFilesystemBackend)
       └── getTransport() → StdioClientTransport
-          └── spawns: agent-backend daemon --rootDir /tmp/workspace
+          └── spawns: agent-backend daemon --rootDir /tmp/agentbe-workspace
               └── agentbe-daemon serves local filesystem via stdio MCP
 ```
 

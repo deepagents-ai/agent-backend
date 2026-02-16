@@ -110,7 +110,7 @@ docker run -d \
   --name agentbe-daemon \
   -p 2222:22 \
   -p 3001:3001 \
-  -v $(pwd)/tmp/workspace:/var/workspace \
+  -v $(pwd)/tmp/agentbe-workspace:/var/workspace \
   -e MCP_AUTH_TOKEN=dev-token \
   agentbe-daemon:latest
 

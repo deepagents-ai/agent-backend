@@ -1,5 +1,6 @@
 packages:
   - typescript
   - examples/NextJS
+  - examples/TSBasic
 
 allowedBuilds: bufferutil,utf-8-validate

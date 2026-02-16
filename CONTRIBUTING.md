@@ -162,7 +162,7 @@ Manual testing:
 ```bash
 docker run --rm -it \
   -p 3001:3001 -p 2222:22 \
-  -v "$(pwd)/tmp/workspace:/var/workspace" \
+  -v "$(pwd)/tmp/agentbe-workspace:/var/workspace" \
   agentbe-daemon:latest
 
 # Test: ssh -p 2222 root@localhost (password: agents)

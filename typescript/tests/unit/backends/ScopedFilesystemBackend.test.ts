@@ -12,7 +12,7 @@ describe('ScopedFilesystemBackend (Unit Tests)', () => {
     // Create mock parent backend
     mockParent = createMockFileBackend({
       type: 'local-filesystem',
-      rootDir: '/tmp/workspace',
+      rootDir: '/tmp/agentbe-workspace',
       connected: true
     })
 
@@ -30,18 +30,15 @@ describe('ScopedFilesystemBackend (Unit Tests)', () => {
     })
 
     it('should inherit parent connection status', () => {
-      expect(scoped.connected).toBe(true)
+      expect(scoped.status).toBe('connected')
 
-      // Note: The scoped backend reads connected status from parent,
-      // but since mockParent uses a plain property (not a getter),
-      // we need to create a new scoped backend to see the change
       const disconnectedParent = createMockFileBackend({
         type: 'local-filesystem',
-        rootDir: '/tmp/workspace',
+        rootDir: '/tmp/agentbe-workspace',
         connected: false
       })
       const disconnectedScoped = new ScopedFilesystemBackend(disconnectedParent, 'users/user1')
-      expect(disconnectedScoped.connected).toBe(false)
+      expect(disconnectedScoped.status).toBe('disconnected')
     })
 
     it('should reject absolute scopePaths', () => {
@@ -90,15 +87,15 @@ describe('ScopedFilesystemBackend (Unit Tests)', () => {
     })
 
     it('should handle absolute paths matching full rootDir', async () => {
-      // Full absolute path /tmp/workspace/users/user1/file.txt should work
-      await scoped.read('/tmp/workspace/users/user1/file.txt')
+      // Full absolute path /tmp/agentbe-workspace/users/user1/file.txt should work
+      await scoped.read('/tmp/agentbe-workspace/users/user1/file.txt')
 
       expect(mockParent.read).toHaveBeenCalledWith('users/user1/file.txt', undefined)
     })
 
     it('should handle absolute path equal to rootDir', async () => {
       // Path equal to rootDir should resolve to scope root
-      await scoped.readdir('/tmp/workspace/users/user1')
+      await scoped.readdir('/tmp/agentbe-workspace/users/user1')
 
       expect(mockParent.readdir).toHaveBeenCalledWith('users/user1')
     })
@@ -248,7 +245,7 @@ describe('ScopedFilesystemBackend (Unit Tests)', () => {
       expect(mockParent.exec).toHaveBeenCalledWith(
         'env',
         expect.objectContaining({
-          cwd: '/tmp/workspace/users/user1',
+          cwd: '/tmp/agentbe-workspace/users/user1',
           env: expect.objectContaining({
             VAR1: 'value1',
             VAR2: 'value2'
@@ -271,7 +268,7 @@ describe('ScopedFilesystemBackend (Unit Tests)', () => {
       expect(mockParent.exec).toHaveBeenCalledWith(
         'env',
         expect.objectContaining({
-          cwd: '/tmp/workspace/users/user1',
+          cwd: '/tmp/agentbe-workspace/users/user1',
           env: expect.objectContaining({
             OVERRIDE: 'call-value'
           })
@@ -332,15 +329,15 @@ describe('ScopedFilesystemBackend (Unit Tests)', () => {
 
     it('should dynamically reflect parent connection status', () => {
       // Connection status should be read from parent dynamically
-      expect(scoped.connected).toBe(true)
+      expect(scoped.status).toBe('connected')
 
       // Change parent connection status
-      mockParent.connected = false
-      expect(scoped.connected).toBe(false)
+      ;(mockParent as any).status = 'disconnected'
+      expect(scoped.status).toBe('disconnected')
 
       // Change back
-      mockParent.connected = true
-      expect(scoped.connected).toBe(true)
+      ;(mockParent as any).status = 'connected'
+      expect(scoped.status).toBe('connected')
     })
   })
 })
