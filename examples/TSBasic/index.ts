@@ -18,11 +18,9 @@
  *   AUTH_TOKEN           - Auth token for remote backend
  */
 
-import { openrouter } from '@openrouter/ai-sdk-provider'
 import { ConnectionStatus, LocalFilesystemBackend, RemoteFilesystemBackend } from 'agent-backend'
 import { VercelAIAdapter } from 'agent-backend/adapters'
-import { stepCountIs, streamText, type ModelMessage } from 'ai'
-import * as readline from 'node:readline'
+import { runChat } from './chat.js'
 
 const BACKEND_TYPE = process.env.BACKEND_TYPE ?? 'local'
 const ROOT_DIR = process.env.ROOT_DIR ?? (BACKEND_TYPE === 'remote' ? '/var/workspace' : '/tmp/agentbe-workspace')
@@ -60,6 +58,7 @@ async function main() {
 
   const backend = createBackend()
 
+  // Show backend connection status
   backend.onStatusChange((event) => {
     const labels: Record<string, string> = {
       [ConnectionStatus.CONNECTED]: '\x1b[32m connected\x1b[0m',
@@ -73,77 +72,22 @@ async function main() {
     process.stderr.write('\n')
   })
 
-  process.stdout.write('Connecting to backend...')
+  // We can now execute file operations simply via ssh-over-websockets
+  backend.writeFile("test.txt", "Hello World")
+
+  // Or we can use the MCP client to get tools for our agent
   const adapter = new VercelAIAdapter(backend)
   const mcpClient = await adapter.getMCPClient()
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const tools = await mcpClient.tools() as any
-  const toolNames = Object.keys(tools)
-  process.stdout.write(` connected! (${toolNames.length} tools: ${toolNames.join(', ')})\n`)
-
-  const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
-  const ask = (prompt: string): Promise<string> =>
-    new Promise((resolve) => rl.question(prompt, resolve))
-
-  const messages: ModelMessage[] = []
-
-  console.log(`Type "exit" to quit.\n`)
+  const tools = await mcpClient.tools()
+  
+  process.stdout.write(` connected! (tools: ${Object.keys(tools).join(', ')})\n`)
 
   try {
-    while (true) {
-      const input = await ask('you> ')
-      if (input.trim().toLowerCase() === 'exit') break
-      if (!input.trim()) continue
-
-      messages.push({ role: 'user', content: input })
-      process.stdout.write('\n...\r')
-
-      const result = streamText({
-        model: openrouter(MODEL),
-        messages,
-        tools,
-        stopWhen: stepCountIs(15),
-      })
-
-      let hasOutput = false
-      for await (const part of result.fullStream) {
-        switch (part.type) {
-          case 'text-delta':
-            if (!hasOutput) {
-              process.stdout.write('\x1b[2K\rassistant> ')
-              hasOutput = true
-            }
-            process.stdout.write(part.text)
-            break
-          case 'tool-call':
-            if (!hasOutput) {
-              process.stdout.write('\x1b[2K\r')
-              hasOutput = true
-            }
-            process.stdout.write(`  [${part.toolName}] ${JSON.stringify(part.input).slice(0, 120)}\n`)
-            break
-          case 'tool-result': {
-            const text = typeof part.output === 'string' ? part.output : JSON.stringify(part.output)
-            if (text.length > 200) {
-              process.stdout.write(`\n  => ${text.slice(0, 200)}...`)
-            } else {
-              process.stdout.write(`\n  => ${text}`)
-            }
-            break
-          }
-        }
-      }
-
-      // Append response messages (including tool calls/results) to conversation history
-      const response = await result.response
-      messages.push(...response.messages)
-      process.stdout.write('\n\n')
-    }
+    await runChat({ model: MODEL, tools })
   } finally {
     console.log('\nShutting down...')
     await mcpClient.close()
     await backend.destroy()
-    rl.close()
   }
 }
 
