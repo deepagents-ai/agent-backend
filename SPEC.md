@@ -16,7 +16,7 @@ The key words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are used as described 
 
 **Scope** -- A restricted view of a backend, rooted at a subdirectory of the parent's workspace. Used for multi-tenant isolation.
 
-**agentbe-daemon** -- The server process that runs on a host and serves the workspace via MCP and optionally SSH.
+**agentbe-daemon** -- The server process that runs on a host and serves the workspace via MCP and SSH over WebSockets.
 
 # Client Libraries
 
@@ -40,8 +40,8 @@ Same operations as local, but executed on a remote host via SSH (for file ops) a
 Configuration:
 - Workspace root directory on the remote host (required)
 - Remote host (required)
-- Transport type: SSH-over-WebSocket (default) or conventional SSH
-- Authentication credentials (password or key-based for SSH; token for WebSocket)
+- Transport type: SSH-over-WebSocket (default) or conventional SSH (optional to support)
+- Authentication credentials (token for WebSocket/MCP; password or key-based for conventional SSH)
 - MCP server port
 - Reconnection settings (max retries, backoff)
 - Operation timeout
@@ -59,7 +59,7 @@ Configuration:
 
 ## Connection Lifecycle
 
-Backends have a status that reflects their connection state.
+Backends have a status that reflects their connection state. All backend types MUST expose the same connection status API — the same status property, the same status enum, and the same `onStatusChange` subscription method — regardless of whether the backend actually has meaningful status transitions. This allows host applications to write generic code that handles any backend type without branching on backend kind. For example, a UI can bind a single status indicator to `backend.status` and `backend.onStatusChange()` and have it work identically for local, remote, and memory backends.
 
 ### Status Values
 
@@ -92,6 +92,49 @@ Backends have a status that reflects their connection state.
 ### Status Observation
 
 Implementations MUST provide a way to subscribe to status changes. Callbacks MUST fire on every status transition.
+
+### Reconnection Behavior (Remote Backends)
+
+Remote backends maintain two independent channels to the daemon: an SSH channel (for file operations and exec) and an MCP channel (HTTP, for tool calls). These channels have different failure and retry semantics.
+
+#### SSH Channel
+
+The SSH channel (SSH-over-WebSocket or conventional SSH) is a persistent connection. Implementations MUST detect connection loss via transport-level events (WebSocket `close`, SSH `close`) and keepalive failures.
+
+**Keepalive:** Implementations SHOULD send SSH keepalive probes at a configurable interval (default: 30 seconds). After a configurable number of missed responses (default: 3), the connection MUST be considered dead and closed.
+
+**On disconnection:**
+1. MUST immediately reject all pending operations with a connection-closed error.
+2. MUST clear any cached transport state (e.g., SFTP sessions).
+3. MUST transition status to "disconnected".
+4. MUST schedule a reconnection attempt if reconnection is enabled.
+
+**Reconnection:** Implementations MUST support automatic reconnection with exponential backoff. The reconnection configuration MUST include:
+- Whether reconnection is enabled (default: true)
+- Maximum retry count (default: 5; 0 means unlimited)
+- Initial delay (default: 1000ms)
+- Maximum delay cap (default: 30000ms)
+- Backoff multiplier (default: 2)
+
+The delay sequence follows `min(initialDelay * multiplier^attempt, maxDelay)`. On successful reconnection, the retry counter MUST reset to zero and status MUST transition to "connected". If max retries are exhausted, the backend MUST remain in "disconnected" status and stop retrying.
+
+If `destroy()` is called while a reconnection is pending, the scheduled retry MUST be cancelled.
+
+#### MCP Channel (HTTP)
+
+The MCP channel uses stateless HTTP requests. There is no persistent connection and no daemon-side session state. Each tool call is an independent HTTP request to the daemon's MCP endpoint.
+
+If an MCP request fails (network error, timeout, non-2xx response), the error MUST propagate to the caller. Implementations MUST NOT automatically retry MCP requests — the caller (typically the AI SDK or application layer) is responsible for retry decisions.
+
+#### Daemon-Side Connection Handling
+
+The daemon does not maintain long-lived client sessions. Each channel is independent:
+
+**SSH-over-WebSocket:** Each incoming WebSocket connection gets its own ephemeral SSH server instance. When the WebSocket closes, the SSH server for that connection is torn down. Spawned child processes (from exec) are not explicitly killed — they terminate naturally when their I/O pipes break.
+
+**MCP over HTTP:** Each HTTP request is handled independently with no server-side session state. There is nothing to clean up when a client disappears.
+
+This stateless daemon design means the client is always responsible for reconnection. The daemon does not track clients, send heartbeats, or attempt to notify clients of impending disconnection. If the daemon process itself restarts, all WebSocket connections drop and clients detect this through their normal disconnection handling.
 
 ---
 
