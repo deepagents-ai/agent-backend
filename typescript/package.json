@@ -42,7 +42,7 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/agent-backend/agent-backend.git"
+    "url": "git+https://github.com/deepagents-ai/agent-backend.git"
   },
   "bugs": {
     "url": "https://github.com/agent-backend/agent-backend/issues"
