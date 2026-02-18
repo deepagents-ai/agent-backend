@@ -1,23 +1,19 @@
 name: Publish Packages
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - "typescript/package.json"
-      - "python/pyproject.toml"
   workflow_dispatch:
 
 jobs:
   check-version:
     runs-on: ubuntu-latest
     outputs:
-      should_publish: ${{ steps.check.outputs.should_publish }}
+      should_publish_npm: ${{ steps.check.outputs.should_publish_npm }}
+      should_publish_pypi: ${{ steps.check.outputs.should_publish_pypi }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check if version is already published
+      - name: Check if versions are already published
         id: check
         run: |
           VERSION=$(jq -r '.version' typescript/package.json)
@@ -25,15 +21,23 @@ jobs:
 
           if npm view "agent-backend@$VERSION" version 2>/dev/null; then
             echo "v$VERSION already published to npm — skipping"
-            echo "should_publish=false" >> "$GITHUB_OUTPUT"
+            echo "should_publish_npm=false" >> "$GITHUB_OUTPUT"
           else
             echo "v$VERSION not yet on npm — will publish"
-            echo "should_publish=true" >> "$GITHUB_OUTPUT"
+            echo "should_publish_npm=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          if curl -sf "https://pypi.org/pypi/agent-backend/$VERSION/json" >/dev/null 2>&1; then
+            echo "v$VERSION already published to PyPI — skipping"
+            echo "should_publish_pypi=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$VERSION not yet on PyPI — will publish"
+            echo "should_publish_pypi=true" >> "$GITHUB_OUTPUT"
           fi
 
   publish-typescript:
     needs: check-version
-    if: needs.check-version.outputs.should_publish == 'true'
+    if: needs.check-version.outputs.should_publish_npm == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -67,7 +71,7 @@ jobs:
 
   publish-python:
     needs: check-version
-    if: needs.check-version.outputs.should_publish == 'true'
+    if: needs.check-version.outputs.should_publish_pypi == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -95,7 +99,7 @@ jobs:
 
   tag-release:
     needs: [check-version, publish-typescript, publish-python]
-    if: needs.check-version.outputs.should_publish == 'true'
+    if: always() && (needs.publish-typescript.result == 'success' || needs.publish-python.result == 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write
