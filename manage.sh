@@ -126,7 +126,7 @@ publish_package() {
 - Python \`pyproject.toml\` + \`__init__.py\` synced
 
 ## Post-merge
-CI will auto-publish to npm and PyPI via the \`publish\` workflow.
+After merging, manually trigger the **Publish Packages** workflow in GitHub Actions to publish to npm and PyPI.
 EOF
 )" \
     --base main
@@ -136,7 +136,7 @@ EOF
   echo ""
   echo "Release branch: $BRANCH"
   echo "Version: $NEW_VERSION"
-  echo "A PR has been opened — merge it to publish via CI."
+  echo "A PR has been opened — after merging, trigger the Publish Packages workflow in GitHub Actions."
 }
 
 start_deploy_ui() {

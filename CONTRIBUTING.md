@@ -139,7 +139,7 @@ This command:
 5. Commits the version changes and pushes the branch
 6. Opens a PR to main via `gh` CLI
 
-When the PR merges to main, a GitHub Action auto-publishes the package to npm.
+After merging the PR, manually trigger the **Publish Packages** workflow in GitHub Actions (Actions tab → Publish Packages → Run workflow). This publishes to npm, PyPI, tags the release, and builds the `agentbe-daemon` Docker image.
 
 ## License
 

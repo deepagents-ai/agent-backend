@@ -164,7 +164,7 @@ lint-python: ## Lint Python package
 
 ##@ Publishing & CI
 
-publish: ## Bump versions, create release branch & PR (CI publishes on merge)
+publish: ## Bump versions, create release branch & PR (manually trigger publish after merge)
 	./manage.sh publish
 
 publish-typescript: ## Publish TypeScript package to npm
