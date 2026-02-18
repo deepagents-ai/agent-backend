@@ -61,6 +61,42 @@ class TestValidateWithinBoundary:
         assert result == "/workspace"
 
 
+class TestValidateWithinBoundaryPosix:
+    """Tests for validate_within_boundary with use_posix=True.
+
+    The remote backend always uses posix mode, so all three path
+    resolution cases and escape prevention must work in this mode.
+    """
+
+    def test_posix_relative_path(self):
+        result = validate_within_boundary("file.txt", "/workspace", use_posix=True)
+        assert result == "/workspace/file.txt"
+
+    def test_posix_relative_subdir(self):
+        result = validate_within_boundary("subdir/file.txt", "/workspace", use_posix=True)
+        assert result == "/workspace/subdir/file.txt"
+
+    def test_posix_absolute_matching_boundary(self):
+        result = validate_within_boundary("/workspace/file.txt", "/workspace", use_posix=True)
+        assert result == "/workspace/file.txt"
+
+    def test_posix_absolute_matching_boundary_subdir(self):
+        result = validate_within_boundary("/workspace/a/b/c", "/workspace", use_posix=True)
+        assert result == "/workspace/a/b/c"
+
+    def test_posix_absolute_not_matching_treated_as_relative(self):
+        result = validate_within_boundary("/etc/passwd", "/workspace", use_posix=True)
+        assert result == "/workspace/etc/passwd"
+
+    def test_posix_escape_via_parent_directory(self):
+        with pytest.raises(PathEscapeError):
+            validate_within_boundary("../etc/passwd", "/workspace", use_posix=True)
+
+    def test_posix_escape_via_complex_traversal(self):
+        with pytest.raises(PathEscapeError):
+            validate_within_boundary("a/b/../../../../etc", "/workspace", use_posix=True)
+
+
 class TestValidateAbsoluteWithinRoot:
     def test_valid_path(self):
         validate_absolute_within_root("/workspace/file.txt", "/workspace")

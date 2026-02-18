@@ -230,9 +230,12 @@ class RemoteFilesystemBackend:
 
         sftp = await self._transport.get_sftp()
         try:
-            # Ensure parent directory exists
+            # Ensure parent directory exists (use workspace-relative path
+            # because the SFTP server is chrooted to root_dir)
             parent = posixpath.dirname(full_path)
-            await sftp.makedirs(parent, exist_ok=True)
+            rel_parent = posixpath.relpath(parent, self._root_dir)
+            if rel_parent != ".":
+                await sftp.makedirs(rel_parent, exist_ok=True)
             data = content.encode("utf-8") if isinstance(content, str) else content
             async with sftp.open(full_path, "wb") as f:
                 await f.write(data)
@@ -313,7 +316,10 @@ class RemoteFilesystemBackend:
         sftp = await self._transport.get_sftp()
         try:
             if recursive:
-                await sftp.makedirs(full_path, exist_ok=True)
+                # Use workspace-relative path because the SFTP server
+                # is chrooted to root_dir
+                rel_path = posixpath.relpath(full_path, self._root_dir)
+                await sftp.makedirs(rel_path, exist_ok=True)
             else:
                 await sftp.mkdir(full_path)
         except Exception as e:

@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import httpx
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-from mcp.client.streamable_http import streamablehttp_client
+from mcp.client.streamable_http import streamable_http_client
 
 
 async def create_mcp_client(
@@ -29,10 +30,13 @@ async def create_mcp_client(
         args = ["--backend", "memory", "--rootDir", root_dir]
 
     server_params = StdioServerParameters(command="agent-backend", args=args)
-    read_stream, write_stream = await stdio_client(server_params).__aenter__()
+    stdio_ctx = stdio_client(server_params)
+    read_stream, write_stream = await stdio_ctx.__aenter__()
     session = ClientSession(read_stream, write_stream)
     await session.__aenter__()
     await session.initialize()
+    # Keep context manager alive to prevent subprocess cleanup via GC
+    session._transport_ctx = stdio_ctx  # type: ignore[attr-defined]
     return session
 
 
@@ -44,21 +48,23 @@ async def create_remote_mcp_client(
     connection_timeout_ms: int = 10000,
 ) -> Any:
     """Create an MCP client for remote backends via HTTP."""
-    headers = {
-        "Authorization": f"Bearer {auth_token}",
-        "X-Root-Dir": root_dir,
-    }
+    headers: dict[str, str] = {"X-Root-Dir": root_dir}
+    if auth_token:
+        headers["Authorization"] = f"Bearer {auth_token}"
     if scope_path:
         headers["X-Scope-Path"] = scope_path
 
     mcp_url = f"{url}/mcp"
 
-    read_stream, write_stream, _ = await streamablehttp_client(
-        mcp_url, headers=headers
-    ).__aenter__()
+    http_ctx = streamable_http_client(
+        mcp_url, http_client=httpx.AsyncClient(headers=headers)
+    )
+    read_stream, write_stream, _ = await http_ctx.__aenter__()
     session = ClientSession(read_stream, write_stream)
     await session.__aenter__()
     await session.initialize()
+    # Keep context manager alive to prevent transport cleanup via GC
+    session._transport_ctx = http_ctx  # type: ignore[attr-defined]
     return session
 
 

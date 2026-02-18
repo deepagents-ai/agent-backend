@@ -6,7 +6,9 @@ Wraps a backend and exposes its MCP tools in the format expected by the AI SDK.
 from __future__ import annotations
 
 from typing import Any
-from mcp.client.streamable_http import streamablehttp_client
+
+import httpx
+from mcp.client.streamable_http import streamable_http_client
 
 
 class VercelAIAdapter:
@@ -58,26 +60,35 @@ class VercelAIAdapter:
 
         # If it's a stdio wrapper, use stdio_client
         if hasattr(transport, "params"):
-            read_stream, write_stream = await stdio_client(transport.params).__aenter__()
+            stdio_ctx = stdio_client(transport.params)
+            read_stream, write_stream = await stdio_ctx.__aenter__()
             session = ClientSession(read_stream, write_stream)
             await session.__aenter__()
             await session.initialize()
+            # Keep context manager alive to prevent subprocess cleanup via GC
+            session._transport_ctx = stdio_ctx  # type: ignore[attr-defined]
             return session
 
         # For HTTP transports, use streamable HTTP
         if hasattr(transport, "url"):
-            headers = {"Authorization": f"Bearer {transport.auth_token}"}
+            headers: dict[str, str] = {}
+            if transport.auth_token:
+                headers["Authorization"] = f"Bearer {transport.auth_token}"
             if transport.root_dir:
                 headers["X-Root-Dir"] = transport.root_dir
             if transport.scope_path:
                 headers["X-Scope-Path"] = transport.scope_path
 
-            read_stream, write_stream, _ = await streamablehttp_client(
-                f"{transport.url}/mcp", headers=headers
-            ).__aenter__()
+            http_ctx = streamable_http_client(
+                f"{transport.url}/mcp",
+                http_client=httpx.AsyncClient(headers=headers),
+            )
+            read_stream, write_stream, _ = await http_ctx.__aenter__()
             session = ClientSession(read_stream, write_stream)
             await session.__aenter__()
             await session.initialize()
+            # Keep context manager alive to prevent transport cleanup via GC
+            session._transport_ctx = http_ctx  # type: ignore[attr-defined]
             return session
 
         raise ValueError(f"Unsupported transport type: {type(transport)}")

@@ -1,4 +1,4 @@
-.PHONY: help install dev dev-local nextjs tsbasic build test clean typecheck lint lint-fix build-typescript build-python test-typescript test-python test-unit typecheck-typescript typecheck-python lint-typescript lint-python publish publish-typescript publish-python start-deploy-ui ci ci-fast sync-assets docker-build
+.PHONY: help install dev dev-local nextjs tsbasic pybasic build test clean typecheck lint lint-fix build-typescript build-python test-typescript test-python test-unit typecheck-typescript typecheck-python lint-typescript lint-python publish publish-typescript publish-python start-deploy-ui ci ci-fast sync-assets docker-build
 
 # Default target - show help
 .DEFAULT_GOAL := help
@@ -91,6 +91,9 @@ nextjs: sync-assets build-typescript ## Run NextJS demo app
 tsbasic: build-typescript ## Run TSBasic CLI example
 	cd examples/TSBasic && npx tsx index.ts
 
+pybasic: build-python ## Run PyBasic CLI example
+	cd examples/PyBasic && uv run python main.py
+
 ##@ Build & Test
 
 build: build-typescript build-python ## Build all packages
@@ -102,6 +105,7 @@ clean: ## Remove build artifacts and dependencies
 	rm -rf typescript/dist typescript/node_modules
 	rm -rf examples/NextJS/dist examples/NextJS/.next examples/NextJS/node_modules
 	rm -rf examples/TSBasic/node_modules
+	rm -rf examples/PyBasic/.venv
 	rm -rf node_modules
 	@echo "Cleaning Python package..."
 	@if [ -d "python" ]; then \
