@@ -4,46 +4,17 @@
 
 The secret sauce behind effective deep AI agents like Claude Code and Manus is a POSIX-compliant filesystem for memory, file manipulation, shell access, and code execution.
 
-This is easy enough for agents running locally to a single machine. If you want to deploy a web agent, you have two options:
+**Agent Backend is a client library + server-side daemon that provides a single API for agent-filesystem interaction within a remote sandbox.** It allows usage of a scalable, distributed filesystem backend just as easily as using MongoDB or Postgres - and it's just as easy to self-host.
 
-1. **Run your agent in the same VM as the filesystem.** This sucks because:
-  * It's a scaling and security liability since you deploy your agent across thousands of VMs, and the code your agent writes is co-located with web server application code and secrets.
-  * You have to separate your agent and app server code. That means a lot more APIs and boilerplate.
-2. **Run your agent as part of your app server**, and have it talk to a virtual filesystem remotely.
+## How do I use it?
 
-Agent Backend achieves a single API for agent-filesystem interaction. Use a scalable, distributed filesystem backend just as easily as you would use a MongoDB or ElasticSearch cluster.
-
-## What does Agent Backend do?
-
-- Single point of integration for local and remote filesystems. Write your code the same way, whether your agent is acting on your local machine or on a VM in a distributed Kubernetes cluster.
-- Code execution on a sandboxed, fully POSIX-compliant filesystem
-- Isolated sub-environments for multitenancy per backend instance
-- Sync to remote storage options including S3
-
-Also supports MCP (Model Context Protocol) and adapters for plug-and-play with leading AI agent SDKs.
-
-[![npm version](https://badge.fury.io/js/agent-backend.svg)](https://badge.fury.io/js/agent-backend)
-[![PyPI version](https://badge.fury.io/py/agent-backend.svg)](https://badge.fury.io/py/agent-backend)
-[![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://choosealicense.com/licenses/apache-2.0/)
+In your agent:
 
 <details open>
 <summary>TypeScript</summary>
 
-```typescript
-function getBackend() {
-  if (environment.isDevelopment) {
-    return new LocalFilesystemBackend({
-      rootDir: '/tmp/agentbe-workspace'
-    });
-  } else {
-    new RemoteFilesystemBackend({
-      rootDir: '/var/workspace',
-      host: 'host1.yoursite.com',
-      ...
-    });
-  }
-}
-await getBackend().exec(...);
+```bash
+npm install agent-backend
 ```
 
 </details>
@@ -51,31 +22,25 @@ await getBackend().exec(...);
 <details>
 <summary>Python</summary>
 
-```python
-from agent_backend import (
-    LocalFilesystemBackend, LocalFilesystemBackendConfig,
-    RemoteFilesystemBackend, RemoteFilesystemBackendConfig,
-)
-
-def get_backend():
-    if environment.is_development:
-        return LocalFilesystemBackend(LocalFilesystemBackendConfig(
-            root_dir="/tmp/agentbe-workspace"
-        ))
-    else:
-        return RemoteFilesystemBackend(RemoteFilesystemBackendConfig(
-            root_dir="/var/workspace",
-            host="host1.yoursite.com",
-            ...
-        ))
-
-await get_backend().exec(...)
+```bash
+pip install agent-backend
 ```
 
 </details>
 
+Agent Backend supports:
+- Long-lived sessions with object storage backing for session durability
+- OCI compatible - bring your own Dockerfile
+- Isolated sub-environments for multitenancy per backend instance
+- MCP (Model Context Protocol) filesystem API (based on the official Filesystem MCP by Anthropic) + direct SSH access
+- Adapters for plug-and-play with leading AI agent SDKs.
+
+[![npm version](https://badge.fury.io/js/agent-backend.svg)](https://badge.fury.io/js/agent-backend)
+[![PyPI version](https://badge.fury.io/py/agent-backend.svg)](https://badge.fury.io/py/agent-backend)
+[![Apache 2.0 License](https://img.shields.io/badge/License-Apache%202.0-green.svg)](https://choosealicense.com/licenses/apache-2.0/)
+
 **Available backends:**
-- **Memory** - Fast in-memory key/value storage.
+- **Memory** - Fast in-memory key/value storage with filesystem semantics
 - **Local Filesystem** - Execute code, run commands, manage files
 - **Remote Filesystem** - Filesystem on a remote host or Docker container
 - **K8s** *(coming soon)* - Fully managed, multi-tenant filesystem backend in a VPC
@@ -148,11 +113,13 @@ flowchart LR
 
 ## Quick Start
 
+Write your code the same way, whether your agent is acting on your local machine or on a VM in a distributed Kubernetes cluster.
+
 <details open>
 <summary>TypeScript</summary>
 
 ```bash
-npm install agent-backend
+await backend.write("hello.txt", "Hello World!")
 ```
 
 </details>
@@ -161,14 +128,76 @@ npm install agent-backend
 <summary>Python</summary>
 
 ```bash
-pip install agent-backend
+await backend.write("hello.txt", "Hello World!")
+```
+
+</details>
+
+On your remote VM or container, run the agentbe-daemon:
+
+```bash
+npm install -g agent-backend
+
+# Start full daemon (Linux only, requires root)
+agent-backend daemon --rootDir /var/workspace --auth-token $SECRET
+
+# Or use Docker
+agent-backend start-docker
+```
+
+You now have full access to the VM instance at port 3001, sandboxed to `rootDir`.
+
+<details open>
+<summary>TypeScript</summary>
+
+```typescript
+function getBackend() {
+  if (environment.isDevelopment) {
+    return new LocalFilesystemBackend({
+      rootDir: '/tmp/agentbe-workspace'
+    });
+  } else {
+    new RemoteFilesystemBackend({
+      rootDir: '/var/workspace',
+      host: 'host1.yoursite.com',
+      authToken: SECRET
+    });
+  }
+}
+await getBackend().exec(...);
+```
+
+</details>
+
+<details>
+<summary>Python</summary>
+
+```python
+from agent_backend import (
+    LocalFilesystemBackend, LocalFilesystemBackendConfig,
+    RemoteFilesystemBackend, RemoteFilesystemBackendConfig,
+)
+
+def get_backend():
+    if environment.is_development:
+        return LocalFilesystemBackend(LocalFilesystemBackendConfig(
+            root_dir="/tmp/agentbe-workspace"
+        ))
+    else:
+        return RemoteFilesystemBackend(RemoteFilesystemBackendConfig(
+            root_dir="/var/workspace",
+            host="host1.yoursite.com",
+            auth_token=SECRET
+        ))
+
+await get_backend().exec(...)
 ```
 
 </details>
 
 ### Memory Backend
 
-Perfect for agent state, caching, and temporary data:
+Lightweight  agent state, caching, and temporary data:
 
 <details open>
 <summary>TypeScript</summary>
