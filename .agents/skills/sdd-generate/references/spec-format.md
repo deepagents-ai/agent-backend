@@ -48,7 +48,7 @@ A spec is a directory containing spec files. The directory name is the bare spec
 
 In the registry and in installed dependency specs (`.opensdd.deps/`), every spec directory MUST contain:
 
-- `manifest.json` — Metadata about the spec (name, version, spec_format, description, dependencies).
+- `manifest.json` — Metadata about the spec (name, version, specFormat, description, dependencies).
 - `spec.md` — The behavioral contract and acceptance criteria. The spec IS the acceptance criteria — a well-written spec contains everything needed to both implement and verify the software.
 
 For the authored spec (`opensdd/`), the directory contains `spec.md` and any supplementary files. The metadata that would be in `manifest.json` lives in the `opensdd.json` `publish` entry instead; a separate `manifest.json` file is constructed during publishing.
@@ -255,23 +255,23 @@ The `opensdd.json` file is the project-level manifest. It lives at the project r
 {
   "opensdd": "0.1.0",
   "registry": "https://github.com/deepagents-ai/opensdd",
-  "specs_dir": "opensdd",
-  "deps_dir": ".opensdd.deps",
+  "specsDir": "opensdd",
+  "depsDir": ".opensdd.deps",
   "publish": {
     "name": "auth",
     "version": "1.0.0",
     "description": "Authentication with multiple provider support",
-    "spec_format": "0.1.0",
+    "specFormat": "0.1.0",
     "dependencies": []
   },
   "dependencies": {
     "slugify": {
       "version": "2.1.0",
       "source": "https://github.com/deepagents-ai/opensdd",
-      "spec_format": "0.1.0",
+      "specFormat": "0.1.0",
       "implementation": null,
       "tests": null,
-      "has_deviations": false
+      "hasDeviations": false
     }
   }
 }
@@ -281,8 +281,8 @@ The `opensdd.json` file is the project-level manifest. It lives at the project r
 
 - `opensdd` (required): Protocol version string. Agents and the CLI MUST use this to determine how to interpret the manifest.
 - `registry` (optional): URL of the default registry. Overridden by the CLI's `--registry` flag. Default: `"https://github.com/deepagents-ai/opensdd"`.
-- `specs_dir` (optional): Relative path from the project root to the directory containing the authored spec. Default: `"opensdd"`.
-- `deps_dir` (optional): Relative path from the project root to the directory containing installed dependency specs. Default: `".opensdd.deps"`.
+- `specsDir` (optional): Relative path from the project root to the directory containing the authored spec. Default: `"opensdd"`.
+- `depsDir` (optional): Relative path from the project root to the directory containing installed dependency specs. Default: `".opensdd.deps"`.
 - `publish` (optional): Object defining the spec this project publishes. Omit if the project only consumes specs.
 - `dependencies` (optional): Object keyed by spec name. Each entry tracks an installed dependency spec. Omit if the project only publishes specs.
 
@@ -291,17 +291,17 @@ The `opensdd.json` file is the project-level manifest. It lives at the project r
 - `name` (required): Bare spec name — lowercase alphanumeric and hyphens only.
 - `version` (required): Semver version of the spec being developed.
 - `description` (required): One-line description for registry display.
-- `spec_format` (required): Which version of the OpenSDD protocol this spec targets.
+- `specFormat` (required): Which version of the OpenSDD protocol this spec targets.
 - `dependencies` (optional): Array of bare spec names that this spec references for shared types or behavioral contracts.
 
 #### Dependency entry fields
 
 - `version` (required): Semver version of the installed spec.
 - `source` (required): URL of the registry this spec was installed from.
-- `spec_format` (required): OpenSDD protocol version of the installed spec.
+- `specFormat` (required): OpenSDD protocol version of the installed spec.
 - `implementation` (consumer-managed): Path to the generated implementation file, `null` until implemented.
 - `tests` (consumer-managed): Path to the generated test file, `null` until implemented.
-- `has_deviations` (consumer-managed): Boolean, `false` until a deviation is created.
+- `hasDeviations` (consumer-managed): Boolean, `false` until a deviation is created.
 
 Consumer-managed fields MUST be present with explicit `null` or `false` values rather than omitted. Fields MUST survive all update operations.
 
@@ -338,8 +338,8 @@ Each spec in the registry MUST have an `index.json` at its root:
   "description": "String to URL-friendly slug",
   "latest": "2.2.0",
   "versions": {
-    "2.1.0": { "spec_format": "0.1.0" },
-    "2.2.0": { "spec_format": "0.1.0" }
+    "2.1.0": { "specFormat": "0.1.0" },
+    "2.2.0": { "specFormat": "0.1.0" }
   }
 }
 ```
@@ -347,7 +347,7 @@ Each spec in the registry MUST have an `index.json` at its root:
 - `name` (required): Bare spec name.
 - `description` (required): One-line description.
 - `latest` (required): The most recent published version.
-- `versions` (required): Object keyed by semver version string. Each entry MAY include summary metadata (e.g., `spec_format`).
+- `versions` (required): Object keyed by semver version string. Each entry MAY include summary metadata (e.g., `specFormat`).
 
 #### manifest.json (per version)
 
@@ -357,7 +357,7 @@ Each version directory MUST contain a `manifest.json`:
 {
   "name": "slugify",
   "version": "2.2.0",
-  "spec_format": "0.1.0",
+  "specFormat": "0.1.0",
   "description": "String to URL-friendly slug",
   "dependencies": []
 }
@@ -365,7 +365,7 @@ Each version directory MUST contain a `manifest.json`:
 
 - `name` (required): Bare spec name.
 - `version` (required): Semver version of this entry.
-- `spec_format` (required): OpenSDD protocol version.
+- `specFormat` (required): OpenSDD protocol version.
 - `description` (required): One-line description.
 - `dependencies` (optional): Array of bare spec names.
 
@@ -429,10 +429,10 @@ Contains the metadata needed to finalize the `opensdd.json` dependency entry whe
 ```json
 {
   "name": "slugify",
-  "previous_version": "2.1.0",
+  "previousVersion": "2.1.0",
   "version": "2.2.0",
   "source": "https://github.com/deepagents-ai/opensdd",
-  "spec_format": "0.1.0"
+  "specFormat": "0.1.0"
 }
 ```
 
@@ -440,11 +440,11 @@ This is a transient artifact. `opensdd update apply` reads this file, applies th
 
 ### SDD-Manager Skill
 
-The sdd-manager skill teaches agents how to implement, update, and verify installed dependency specs. It is installed once per project via `opensdd init` alongside the sdd-generate skill, into each supported agent's configuration directory. See [sdd-manager.md](sdd-manager.md) for the full skill workflow, including implementation defaults, the project conventions check, and the verification protocol.
+The sdd-manager skill teaches agents how to implement, update, and verify installed dependency specs. It is installed once per project via `opensdd init` alongside the sdd-generate skill, into each supported agent's configuration directory. See [sdd-manager.md](skills/sdd-manager.md) for the full skill workflow, including implementation defaults, the project conventions check, and the verification protocol.
 
 ### SDD-Generate Skill
 
-The sdd-generate skill teaches agents how to generate a spec from existing code. See [sdd-generate.md](sdd-generate.md) for the full skill workflow.
+The sdd-generate skill teaches agents how to generate a spec from existing code. See [sdd-generate.md](skills/sdd-generate.md) for the full skill workflow.
 
 ### Versioning
 
@@ -484,7 +484,7 @@ Specs use semantic versioning:
 - Spec-owned files in `.opensdd.deps/` MUST NOT be modified by the consumer or their agent
 - `deviations.md` MUST NOT be created, modified, or deleted by the CLI or any automated tooling
 - Consumer-managed fields in `opensdd.json` MUST survive all update operations
-- Every installed dependency spec MUST have both a directory in `deps_dir` and an entry in `opensdd.json` `dependencies`
+- Every installed dependency spec MUST have both a directory in `depsDir` and an entry in `opensdd.json` `dependencies`
 - All behaviors described in the spec MUST be thoroughly tested by the implementing agent
 - A `spec.md` MUST contain an H1 header with blockquote summary and a `## Behavioral Contract` section
 - `deviations.md` MUST only be created when a deviation actually exists

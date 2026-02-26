@@ -41,7 +41,7 @@ The dependency spec (`spec.md`) is the authoritative description of what to buil
 
 5. **Verify:** Execute the full verification protocol (see Verification Protocol section below): generate test suite → run tests until all pass (or SHOULD bail after 50 attempts) → dispatch subagent for spec compliance audit → fix any findings → re-run tests.
 
-6. **Record:** Update `opensdd.json` `dependencies` entry with `implementation` path, `tests` path, and `has_deviations` if applicable.
+6. **Record:** Update `opensdd.json` `dependencies` entry with `implementation` path, `tests` path, and `hasDeviations` if applicable.
 
 7. **Report:** Report results with spec coverage summary.
 
@@ -60,7 +60,7 @@ Run existing test suite → report pass/fail. If test suite is missing or stale,
 
 ### Create Deviation
 
-Determine affected spec section → classify type → create/append to `deviations.md` in `.opensdd.deps/<name>/` → update test suite to skip affected tests → update `has_deviations` in `opensdd.json`.
+Determine affected spec section → classify type → create/append to `deviations.md` in `.opensdd.deps/<name>/` → update test suite to skip affected tests → update `hasDeviations` in `opensdd.json`.
 
 ## Universal Implementation Defaults
 

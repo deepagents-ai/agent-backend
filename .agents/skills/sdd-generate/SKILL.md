@@ -1,3 +1,7 @@
+---
+name: sdd-generate
+description: "Generate an OpenSDD behavioral spec from existing code. Use when the user asks to generate, create, or extract a spec from a repository or codebase."
+---
 # SDD Generate
 
 > Guides an AI agent through analyzing a repository and generating a behavioral spec in the OpenSDD format.
@@ -12,8 +16,8 @@ Before starting, you need:
 
 1. A **target repository** — a GitHub URL or local path provided by the user.
 2. A **scope** — which capability, module, or function to spec. If the user provides a whole-repo URL without scoping, ask them to narrow it before proceeding. A spec for "the entire lodash library" is not useful. A spec for "lodash's string slugification" is.
-3. The **spec-format reference** — read [spec-format.md](spec-format.md) to understand the required output structure.
-4. A **working directory** — confirm with the user where the generated spec should be written. If the project has `opensdd.json`, use the directory specified by `specs_dir` (default: `opensdd/`). If the project is not yet initialized, ask the user where to output the spec — a common default is `opensdd/` in the current project root. The agent does not need `opensdd.json` to exist before generating a spec.
+3. The **spec-format reference** — read [spec-format.md](../spec-format.md) to understand the required output structure.
+4. A **working directory** — confirm with the user where the generated spec should be written. If the project has `opensdd.json`, use the directory specified by `specsDir` (default: `opensdd/`). If the project is not yet initialized, ask the user where to output the spec — a common default is `opensdd/` in the current project root. The agent does not need `opensdd.json` to exist before generating a spec.
 
 ## Output
 
@@ -34,7 +38,7 @@ If `opensdd.json` exists, add or update the `publish` object:
     "name": "{name}",
     "version": "{semver}",
     "description": "{one-line description}",
-    "spec_format": "0.1.0",
+    "specFormat": "0.1.0",
     "dependencies": []
   }
 }
@@ -153,14 +157,14 @@ Always update `_notes/gaps.md` at the end of each pass with what still needs to 
 - The full `spec.md` draft
 - `_notes/inventory.md` — verify every public API item is covered
 - `_notes/gaps.md` — verify no critical gaps remain
-- [spec-format.md](spec-format.md) — verify structural compliance
+- [spec-format.md](../spec-format.md) — verify structural compliance
 
 **Write:**
 - `spec.md` — add or complete:
   - `## NOT Specified (Implementation Freedom)` — list implementation choices observed in the source that the spec intentionally leaves open (data structures, algorithms, caching, internal architecture)
   - `## Invariants` — universal properties extracted from property tests, type constraints, or behavioral patterns (e.g., idempotency, commutativity, output format guarantees)
   - `## Implementation Hints` (optional) — guidance on performance, concurrency, or common pitfalls observed in the source, only if genuinely useful. If the spec targets a specific platform, hints MAY be platform-specific; otherwise they SHOULD be language-agnostic.
-- If `opensdd.json` exists, add or update the `publish` object with name, version, description, spec_format, and dependencies from `_notes/scope.md`.
+- If `opensdd.json` exists, add or update the `publish` object with name, version, description, specFormat, and dependencies from `_notes/scope.md`.
 
 **Validate the output:**
 - MUST have H1 header with blockquote summary and `## Behavioral Contract`
