@@ -1,20 +1,12 @@
-# agentbe-daemon Specification
+# agentbe-daemon
 
-This document is the language-agnostic source of truth for the agentbe-daemon process. It defines the behavioral contracts for the daemon's endpoints, authentication, transports, scoping, request handling, shutdown, and Docker packaging.
+> Behavioral contract for the agentbe-daemon server process -- endpoints, authentication, transports, scoping, request handling, shutdown, and Docker packaging.
 
-Implementations MUST conform to the semantics described here. The exact framework or runtime (Express, Fastify, etc.) is an implementation detail left to each language.
-
-## Terminology
-
-The key words MUST, MUST NOT, SHOULD, SHOULD NOT, and MAY are used as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+### Daemon-Specific Terminology
 
 **daemon** -- The long-running server process (`agentbe-daemon`) that exposes a workspace over HTTP (MCP) and WebSocket (SSH). Referred to as "the daemon" throughout this document.
 
-**workspace** -- The root directory the daemon operates within. All file operations and command execution are confined to this directory and its descendants.
-
 **transport** -- A communication channel between clients and the daemon. The daemon supports three transports: stdio (local-only), HTTP (MCP), and WebSocket (SSH).
-
-**scope** -- A restricted sub-directory view of the workspace. Scopes confine operations to a subset of the workspace for multi-tenant isolation.
 
 **host key** -- The SSH host key used by the ephemeral SSH server for SSH-over-WebSocket connections.
 
@@ -234,6 +226,8 @@ In full daemon mode, the backend MUST be constructed with dangerous command bloc
 If a valid scope path is present, the daemon MUST create a scoped backend from the base backend using the normalized scope path.
 
 ### MCP Server Tools
+
+**Important:** The MCP protocol and its official reference servers evolve independently of this spec. Before implementing or updating MCP request handling, the implementer MUST consult the latest [MCP specification](https://spec.modelcontextprotocol.io/), the [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk), and the [official MCP Filesystem Server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) for current transport types, server APIs, tool schemas, and protocol details. The tool list below is a snapshot; the official filesystem server is the source of truth.
 
 The daemon MUST register the tools defined by the [official MCP Filesystem Server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem). Tool names, input schemas, and output formats MUST match the official filesystem MCP server exactly.
 
