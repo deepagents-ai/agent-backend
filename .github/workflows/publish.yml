@@ -97,8 +97,24 @@ jobs:
         with:
           packages-dir: dist/
 
+  publish-opensdd:
+    needs: check-version
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install opensdd CLI
+        run: npm install -g opensdd
+
+      - name: Publish OpenSDD spec
+        run: opensdd publish --branch "agent-backend/${{ needs.check-version.outputs.version }}"
+
   tag-release:
-    needs: [check-version, publish-typescript, publish-python]
+    needs: [check-version, publish-typescript, publish-python, publish-opensdd]
     if: always() && (needs.publish-typescript.result == 'success' || needs.publish-python.result == 'success')
     runs-on: ubuntu-latest
     permissions:

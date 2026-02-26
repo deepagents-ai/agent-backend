@@ -227,6 +227,8 @@ If a valid scope path is present, the daemon MUST create a scoped backend from t
 
 ### MCP Server Tools
 
+**Important:** The MCP protocol and its official reference servers evolve independently of this spec. Before implementing or updating MCP request handling, the implementer MUST consult the latest [MCP specification](https://spec.modelcontextprotocol.io/), the [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk), and the [official MCP Filesystem Server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem) for current transport types, server APIs, tool schemas, and protocol details. The tool list below is a snapshot; the official filesystem server is the source of truth.
+
 The daemon MUST register the tools defined by the [official MCP Filesystem Server](https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem). Tool names, input schemas, and output formats MUST match the official filesystem MCP server exactly.
 
 At time of writing, the official filesystem MCP server provides the following tools:

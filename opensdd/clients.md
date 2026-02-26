@@ -324,6 +324,8 @@ Scoping creates a restricted sub-backend rooted at a subdirectory of the parent 
 
 Backends MUST provide a way to obtain an MCP (Model Context Protocol) client or transport for exposing workspace tools to AI agents.
 
+**Important:** The MCP protocol evolves independently of this spec. Before implementing or updating MCP integration, the implementer MUST consult the latest [MCP specification](https://spec.modelcontextprotocol.io/) and [MCP TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) for current transport types, client APIs, and protocol details. The behavioral requirements below describe the integration semantics; the exact MCP client/transport APIs may change across MCP SDK versions.
+
 ### MCP Transport
 
 - MUST return a transport suitable for connecting to an MCP server that operates on the backend's workspace.

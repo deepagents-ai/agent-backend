@@ -94,6 +94,14 @@ publish_package() {
   local PY_INIT="$SCRIPT_DIR/python/agent_backend/__init__.py"
   sed -i '' "s/^__version__ = \".*\"/__version__ = \"$NEW_VERSION\"/" "$PY_INIT"
   echo "Updated $PY_TOML and $PY_INIT to $NEW_VERSION"
+
+  # 2b. Sync OpenSDD spec version
+  local OPENSDD_JSON="$SCRIPT_DIR/opensdd.json"
+  if [[ -f "$OPENSDD_JSON" ]]; then
+    echo "Syncing OpenSDD spec version..."
+    jq --arg v "$NEW_VERSION" '.publish.version = $v' "$OPENSDD_JSON" > "$OPENSDD_JSON.tmp" && mv "$OPENSDD_JSON.tmp" "$OPENSDD_JSON"
+    echo "Updated $OPENSDD_JSON to $NEW_VERSION"
+  fi
   echo ""
 
   # 3. Build TypeScript to verify it compiles
@@ -109,7 +117,7 @@ publish_package() {
   echo "Creating release branch: $BRANCH"
   git checkout -b "$BRANCH"
 
-  git add "$TS_PKG" "$PY_TOML" "$PY_INIT"
+  git add "$TS_PKG" "$PY_TOML" "$PY_INIT" "$OPENSDD_JSON"
   git commit -m "chore: bump version to v$NEW_VERSION"
 
   echo "Pushing branch..."
