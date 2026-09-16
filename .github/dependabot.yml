@@ -39,6 +39,10 @@ updates:
       # Node typings track the engines floor (>=18), not the newest release
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      # TypeScript 7 (native compiler) ships no JS compiler API, which
+      # vite-plugin-dts and typescript-eslint need. Revisit once they support it.
+      - dependency-name: "typescript"
+        versions: [">=7.0.0"]
 
   # Standalone npm project, outside the pnpm workspace
   - package-ecosystem: "npm"

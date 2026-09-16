@@ -76,7 +76,7 @@ export default function BackendSettings() {
           <h2 className="text-lg font-semibold text-foreground">Backend Settings</h2>
           <button
             onClick={() => setIsOpen(false)}
-            className="p-1 hover:bg-background-elevated rounded transition-colors"
+            className="p-1 hover:bg-background-elevated rounded-sm transition-colors"
           >
             <X className="w-5 h-5 text-foreground-secondary" />
           </button>
@@ -146,7 +146,7 @@ export default function BackendSettings() {
                         local: { ...config.local, rootDir: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                     placeholder="/tmp/agentbe-workspace"
                   />
                 </div>
@@ -165,7 +165,7 @@ export default function BackendSettings() {
                         },
                       })
                     }
-                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                   >
                     <option value="auto">Auto (detect best)</option>
                     <option value="bwrap">Bubblewrap (Linux only)</option>
@@ -192,7 +192,7 @@ export default function BackendSettings() {
                         remote: { ...config.remote!, host: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                     placeholder="localhost"
                   />
                 </div>
@@ -213,7 +213,7 @@ export default function BackendSettings() {
                         },
                       })
                     }
-                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                     placeholder="3001"
                   />
                   <p className="mt-1 text-xs text-foreground-muted">
@@ -238,7 +238,7 @@ export default function BackendSettings() {
                           },
                         })
                       }
-                      className="w-full px-3 py-2 pr-10 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                      className="w-full px-3 py-2 pr-10 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                       placeholder="your-auth-token"
                     />
                     <button
@@ -271,7 +271,7 @@ export default function BackendSettings() {
                         remote: { ...config.remote!, rootDir: e.target.value },
                       })
                     }
-                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                    className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                     placeholder="/var/workspace"
                   />
                 </div>
@@ -292,7 +292,7 @@ export default function BackendSettings() {
                     scope: e.target.value || undefined,
                   })
                 }
-                className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-none focus:border-primary"
+                className="w-full px-3 py-2 bg-background-elevated border border-border rounded-lg text-foreground focus:outline-hidden focus:border-primary"
                 placeholder="e.g., projects/myapp"
               />
               <p className="mt-1 text-xs text-foreground-muted">

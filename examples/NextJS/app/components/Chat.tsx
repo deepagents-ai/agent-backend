@@ -100,7 +100,7 @@ export default function Chat({ sessionId, onAgentFinished }: ChatProps) {
               className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.role === 'assistant' && (
-                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center shrink-0">
                   <Bot className="w-5 h-5 text-white" />
                 </div>
               )}
@@ -156,7 +156,7 @@ export default function Chat({ sessionId, onAgentFinished }: ChatProps) {
                               {tool.input && (
                                 <div className="min-w-0">
                                   <p className="text-xs font-medium text-foreground-muted mb-1">Input:</p>
-                                  <pre className="text-xs bg-background rounded p-2 overflow-x-auto text-foreground-secondary whitespace-pre-wrap break-all">
+                                  <pre className="text-xs bg-background rounded-sm p-2 overflow-x-auto text-foreground-secondary whitespace-pre-wrap break-all">
                                     {JSON.stringify(tool.input, null, 2)}
                                   </pre>
                                 </div>
@@ -164,7 +164,7 @@ export default function Chat({ sessionId, onAgentFinished }: ChatProps) {
                               {tool.output && (
                                 <div className="min-w-0">
                                   <p className="text-xs font-medium text-foreground-muted mb-1">Output:</p>
-                                  <pre className="text-xs bg-background rounded p-2 overflow-x-auto text-foreground-secondary whitespace-pre-wrap break-all max-h-64">
+                                  <pre className="text-xs bg-background rounded-sm p-2 overflow-x-auto text-foreground-secondary whitespace-pre-wrap break-all max-h-64">
                                     {JSON.stringify(tool.output, null, 2)}
                                   </pre>
                                 </div>
@@ -172,7 +172,7 @@ export default function Chat({ sessionId, onAgentFinished }: ChatProps) {
                               {tool.errorText && (
                                 <div className="min-w-0">
                                   <p className="text-xs font-medium text-error mb-1">Error:</p>
-                                  <pre className="text-xs bg-background rounded p-2 overflow-x-auto text-error whitespace-pre-wrap break-all">
+                                  <pre className="text-xs bg-background rounded-sm p-2 overflow-x-auto text-error whitespace-pre-wrap break-all">
                                     {tool.errorText}
                                   </pre>
                                 </div>
@@ -187,7 +187,7 @@ export default function Chat({ sessionId, onAgentFinished }: ChatProps) {
               </div>
 
               {message.role === 'user' && (
-                <div className="w-8 h-8 rounded-lg bg-background-elevated flex items-center justify-center flex-shrink-0">
+                <div className="w-8 h-8 rounded-lg bg-background-elevated flex items-center justify-center shrink-0">
                   <User className="w-5 h-5 text-foreground-secondary" />
                 </div>
               )}
@@ -206,7 +206,7 @@ export default function Chat({ sessionId, onAgentFinished }: ChatProps) {
             onChange={(e) => setInput(e.target.value)}
             placeholder="Ask me to create files, run commands..."
             disabled={isLoading}
-            className="flex-1 px-4 py-3 bg-background-surface border border-border rounded-lg text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-primary disabled:opacity-50"
+            className="flex-1 px-4 py-3 bg-background-surface border border-border rounded-lg text-foreground placeholder:text-foreground-muted focus:outline-hidden focus:border-primary disabled:opacity-50"
           />
           <button
             type="submit"
