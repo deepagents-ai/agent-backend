@@ -52,7 +52,7 @@ jobs:
 
       - uses: pnpm/action-setup@v6
         with:
-          version: 9
+          version: 10
 
       - name: Upgrade npm for OIDC trusted publishing
         run: npm install -g npm@11.11.1

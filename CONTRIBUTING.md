@@ -24,7 +24,7 @@ Use the feature request template. Explain the use case, the expected benefit, an
 ### Prerequisites
 
 - Node.js 18+
-- pnpm
+- pnpm 10+
 - Python 3.12+ and [uv](https://docs.astral.sh/uv/) (required by `make install` and `make test`)
 - Git
 - Docker (recommended, for remote backend testing and the document-room sandbox providers)

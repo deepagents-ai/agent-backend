@@ -9,4 +9,14 @@ packages:
   - examples/NextJS
   - examples/TSBasic
 
-allowedBuilds: bufferutil,utf-8-validate
+# pnpm settings live here, not in package.json: pnpm 11+ no longer reads the
+# "pnpm" field there, and Dependabot runs a recent pnpm when updating the lockfile.
+overrides:
+  js-yaml@^4.3.0: ^4.3.1
+  fast-uri@^3.0.0: ^3.1.5
+  ip-address: ^10.3.1
+
+onlyBuiltDependencies:
+  - bufferutil
+  - utf-8-validate
+  - cpu-features
