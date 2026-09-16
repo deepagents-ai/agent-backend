@@ -133,8 +133,6 @@ clean: ## Remove build artifacts and dependencies
 	fi
 	@echo "Cleaning development artifacts..."
 	rm -rf tmp/
-	@echo "Cleaning lockfiles..."
-	rm -f pnpm-lock.yaml
 
 ##@ Code Quality
 
