@@ -187,7 +187,7 @@ export function createMockMemoryBackend(overrides: Partial<MemoryBackend> = {}):
  * @example
  * ```typescript
  * const mockClient = createMockSSH2Client()
- * vi.mocked(Client).mockImplementation(() => mockClient)
+ * vi.mocked(Client).mockImplementation(function () { return mockClient })
  *
  * const backend = new RemoteFilesystemBackend({ ... })
  * await backend.connect()

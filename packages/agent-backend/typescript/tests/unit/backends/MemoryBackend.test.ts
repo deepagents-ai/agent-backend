@@ -5,10 +5,12 @@ import { PathEscapeError } from '../../../src/types.js'
 
 // Mock the MCP SDK transport to capture options
 vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
-  StdioClientTransport: vi.fn().mockImplementation((options) => ({
-    type: 'stdio',
-    options,
-  })),
+  StdioClientTransport: vi.fn().mockImplementation(function (options) {
+    return {
+      type: 'stdio',
+      options,
+    }
+  }),
 }))
 
 describe('MemoryBackend (Unit Tests)', () => {

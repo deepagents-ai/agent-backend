@@ -104,10 +104,10 @@ describe('WebSocketSSHTransport', () => {
 
     it('should use default path and timeout values', () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -125,10 +125,10 @@ describe('WebSocketSSHTransport', () => {
   describe('Connection', () => {
     it('should connect via WebSocket then establish SSH session', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -147,10 +147,10 @@ describe('WebSocketSSHTransport', () => {
 
     it('should not reconnect if already connected', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -165,7 +165,7 @@ describe('WebSocketSSHTransport', () => {
 
     it('should handle WebSocket connection errors', async () => {
       const mockWs = createMockWebSocket({ openBehavior: 'error' })
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -178,10 +178,10 @@ describe('WebSocketSSHTransport', () => {
 
     it('should handle SSH handshake errors', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient({ connectBehavior: 'error' })
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -193,10 +193,10 @@ describe('WebSocketSSHTransport', () => {
 
     it('should use wss:// for port 443', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -229,8 +229,8 @@ describe('WebSocketSSHTransport', () => {
       ['after', false],
     ])('rejects with WebSocketAuthError when 4001 arrives %s the SSH error', async (_label, closeFirst) => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
-      vi.mocked(SSHClient).mockImplementation(() => rejectingSSHClient(mockWs, 4001, closeFirst) as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
+      vi.mocked(SSHClient).mockImplementation(function () { return rejectingSSHClient(mockWs, 4001, closeFirst) as any })
 
       const transport = new WebSocketSSHTransport({ host: 'example.com', port: 3001, authToken: 'wrong' })
 
@@ -242,8 +242,8 @@ describe('WebSocketSSHTransport', () => {
 
     it('keeps the original error for other close codes', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
-      vi.mocked(SSHClient).mockImplementation(() => rejectingSSHClient(mockWs, 1006, false) as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
+      vi.mocked(SSHClient).mockImplementation(function () { return rejectingSSHClient(mockWs, 1006, false) as any })
 
       const transport = new WebSocketSSHTransport({ host: 'example.com', port: 3001 })
 
@@ -256,12 +256,12 @@ describe('WebSocketSSHTransport', () => {
   describe('Command Execution', () => {
     it('should execute command and return stdout/stderr/code', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient({
         execResults: { stdout: 'hello world\n', stderr: '', code: 0 }
       })
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -277,12 +277,12 @@ describe('WebSocketSSHTransport', () => {
 
     it('should capture stderr and non-zero exit codes', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient({
         execResults: { stdout: '', stderr: 'error message', code: 1 }
       })
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -309,10 +309,10 @@ describe('WebSocketSSHTransport', () => {
   describe('SFTP', () => {
     it('should get SFTP session', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -328,10 +328,10 @@ describe('WebSocketSSHTransport', () => {
 
     it('should reuse existing SFTP session', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',
@@ -349,10 +349,10 @@ describe('WebSocketSSHTransport', () => {
   describe('Disconnect', () => {
     it('should clean up resources on disconnect', async () => {
       const mockWs = createMockWebSocket()
-      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(WebSocket).mockImplementation(function () { return mockWs as any })
 
       const mockSsh = createMockSSHClient()
-      vi.mocked(SSHClient).mockImplementation(() => mockSsh as any)
+      vi.mocked(SSHClient).mockImplementation(function () { return mockSsh as any })
 
       const transport = new WebSocketSSHTransport({
         host: 'example.com',

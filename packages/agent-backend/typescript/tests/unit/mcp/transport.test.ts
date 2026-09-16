@@ -9,18 +9,22 @@ import { BackendError } from '../../../src/types.js'
 
 // Mock the MCP SDK transports
 vi.mock('@modelcontextprotocol/sdk/client/stdio.js', () => ({
-  StdioClientTransport: vi.fn().mockImplementation((options) => ({
-    type: 'stdio',
-    options,
-  })),
+  StdioClientTransport: vi.fn().mockImplementation(function (options) {
+    return {
+      type: 'stdio',
+      options,
+    }
+  }),
 }))
 
 vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
-  StreamableHTTPClientTransport: vi.fn().mockImplementation((url, options) => ({
-    type: 'http',
-    url,
-    options,
-  })),
+  StreamableHTTPClientTransport: vi.fn().mockImplementation(function (url, options) {
+    return {
+      type: 'http',
+      url,
+      options,
+    }
+  }),
 }))
 
 describe('MCP Transport (Unit Tests)', () => {
