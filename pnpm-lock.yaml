@@ -20,8 +20,8 @@ importers:
   examples/NextJS:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^1.0.18
-        version: 1.0.63(zod@3.25.76)
+        specifier: ^2.0.49
+        version: 2.0.49(zod@3.25.76)
       '@ai-sdk/react':
         specifier: ^4.0.102
         version: 4.0.102(react@18.3.1)(zod@3.25.76)
@@ -108,8 +108,8 @@ importers:
   examples/TSBasic:
     dependencies:
       '@ai-sdk/mcp':
-        specifier: ^1.0.18
-        version: 1.0.63(zod@4.4.3)
+        specifier: ^2.0.49
+        version: 2.0.49(zod@4.4.3)
       '@openrouter/ai-sdk-provider':
         specifier: latest
         version: 3.0.0(ai@7.0.99(zod@4.4.3))(zod@4.4.3)
@@ -164,8 +164,8 @@ importers:
         version: 4.4.3
     devDependencies:
       '@ai-sdk/mcp':
-        specifier: ^1.0.18
-        version: 1.0.63(zod@4.4.3)
+        specifier: ^2.0.49
+        version: 2.0.49(zod@4.4.3)
       '@eslint/js':
         specifier: ^9.39.2
         version: 9.39.5
@@ -359,12 +359,6 @@ packages:
   '@ai-sdk/gateway@4.0.80':
     resolution: {integrity: sha512-6t+07o8lSthpKf64Xb1qHWR2bWvJ3Fd2oFvS9fQc45p31bi2OUqan246e/ojAmZpWCiMPjKyQ4TBr4MYytnTiQ==}
     engines: {node: '>=22'}
-    peerDependencies:
-      zod: ^3.25.76 || ^4.1.8
-
-  '@ai-sdk/mcp@1.0.63':
-    resolution: {integrity: sha512-R42G3MdF5u5nHazwiWtoRaDYQKmFkMRQ5uf/uGrah0zNu2LBW0D/g43fiqXsvTblLypVM/J53EwF2+iAjqj1mQ==}
-    engines: {node: '>=18'}
     peerDependencies:
       zod: ^3.25.76 || ^4.1.8
 
@@ -3867,20 +3861,6 @@ snapshots:
       '@vercel/oidc': 3.2.0
       zod: 4.4.3
 
-  '@ai-sdk/mcp@1.0.63(zod@3.25.76)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@ai-sdk/provider-utils': 4.0.40(zod@3.25.76)
-      pkce-challenge: 5.0.1
-      zod: 3.25.76
-
-  '@ai-sdk/mcp@1.0.63(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@ai-sdk/provider-utils': 4.0.40(zod@4.4.3)
-      pkce-challenge: 5.0.1
-      zod: 4.4.3
-
   '@ai-sdk/mcp@2.0.49(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 4.0.14
@@ -3889,19 +3869,20 @@ snapshots:
       pkce-challenge: 5.0.1
       zod: 3.25.76
 
+  '@ai-sdk/mcp@2.0.49(zod@4.4.3)':
+    dependencies:
+      '@ai-sdk/provider': 4.0.14
+      '@ai-sdk/provider-utils': 5.0.40(zod@4.4.3)
+      cross-spawn: 7.0.6
+      pkce-challenge: 5.0.1
+      zod: 4.4.3
+
   '@ai-sdk/provider-utils@4.0.40(zod@3.25.76)':
     dependencies:
       '@ai-sdk/provider': 3.0.14
       '@standard-schema/spec': 1.1.0
       eventsource-parser: 3.1.0
       zod: 3.25.76
-
-  '@ai-sdk/provider-utils@4.0.40(zod@4.4.3)':
-    dependencies:
-      '@ai-sdk/provider': 3.0.14
-      '@standard-schema/spec': 1.1.0
-      eventsource-parser: 3.1.0
-      zod: 4.4.3
 
   '@ai-sdk/provider-utils@5.0.40(zod@3.25.76)':
     dependencies:
