@@ -919,7 +919,7 @@ export function registerGrepTool(server: McpServer, getBackend: BackendGetter): 
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         if (msg.includes('exit code 127') || /rg:\s+(command\s+)?not found/i.test(msg)) {
-          throw new Error('grep requires ripgrep (rg) to be installed. Install via `apt install ripgrep`, `brew install ripgrep`, or use the agentbe-daemon Docker image.')
+          throw new Error('grep requires ripgrep (rg) to be installed. Install via `apt install ripgrep`, `brew install ripgrep`, or use the agentbe-daemon Docker image.', { cause: err })
         }
         throw err
       }
