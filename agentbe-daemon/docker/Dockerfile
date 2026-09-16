@@ -48,11 +48,10 @@ RUN npm i -g pnpm && \
 ARG AGENTBE_VERSION=local
 RUN --mount=type=bind,source=packages/agent-backend/typescript,target=/tmp/agent-backend-src \
     if [ "$AGENTBE_VERSION" = "local" ]; then \
-      mkdir -p /tmp/agent-backend && \
-      cp /tmp/agent-backend-src/package.json /tmp/agent-backend/ && \
-      cp -r /tmp/agent-backend-src/dist /tmp/agent-backend/dist && \
-      cp -r /tmp/agent-backend-src/bin /tmp/agent-backend/bin && \
-      cd /tmp/agent-backend && npm install && npm link; \
+      # Pack then install, so the image gets exactly what npm publish would ship
+      cd /tmp && npm pack /tmp/agent-backend-src && \
+      npm i -g /tmp/agent-backend-*.tgz && \
+      rm /tmp/agent-backend-*.tgz; \
     else \
       npm i -g agent-backend@${AGENTBE_VERSION}; \
     fi
