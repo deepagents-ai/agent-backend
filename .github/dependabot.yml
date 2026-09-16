@@ -26,10 +26,15 @@ updates:
       prefix: "chore"
       prefix-development: "chore"
       include: "scope"
+    # Every update rewrites pnpm-lock.yaml, so separate PRs conflict with each
+    # other after each merge. Grouping majors too keeps it to two PRs per run.
     groups:
       npm-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
+      npm-major:
+        patterns: ["*"]
+        update-types: ["major"]
     ignore:
       # Node typings track the engines floor (>=18), not the newest release
       - dependency-name: "@types/node"
