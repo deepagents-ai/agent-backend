@@ -16,7 +16,7 @@ import { validateRemoteFilesystemBackendConfig } from './config.js'
 import { ConnectionStatusManager } from './ConnectionStatusManager.js'
 import { validateWithinBoundary } from './pathValidation.js'
 import { ScopedFilesystemBackend } from './ScopedFilesystemBackend.js'
-import { WebSocketSSHTransport } from './transports/WebSocketSSHTransport.js'
+import { WebSocketAuthError, WebSocketSSHTransport } from './transports/WebSocketSSHTransport.js'
 import type { Backend, FileBasedBackend, ScopedBackend, StatusChangeCallback, Unsubscribe } from './types.js'
 import { BackendType, ConnectionStatus } from './types.js'
 
@@ -122,6 +122,8 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
 
   /** Whether this backend has been destroyed */
   private destroyed = false
+  /** Set when the daemon rejected the auth token; suppresses reconnection until a fresh connect succeeds */
+  private authRejected = false
 
   get status(): ConnectionStatus {
     return this.statusManager.status
@@ -1148,6 +1150,7 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
     })
 
     try {
+      this.authRejected = false
       await this.wsTransport.connect()
       getLogger().debug('[SSH-WS] Connection established')
       this.reconnectAttempts = 0
@@ -1156,10 +1159,17 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
     } catch (err: unknown) {
       this.connectionPromise = null
       this.wsTransport = null
-      const connectError = new BackendError(
-        `SSH-WS connection failed: ${err instanceof Error ? err.message : String(err)}`,
-        ERROR_CODES.EXEC_FAILED
-      )
+      let connectError: BackendError
+      if (err instanceof WebSocketAuthError) {
+        // Retrying with the same token cannot succeed
+        this.authRejected = true
+        connectError = new BackendError(`SSH-WS authentication failed: ${err.message}`, ERROR_CODES.AUTH_FAILED)
+      } else {
+        connectError = new BackendError(
+          `SSH-WS connection failed: ${err instanceof Error ? err.message : String(err)}`,
+          ERROR_CODES.EXEC_FAILED
+        )
+      }
       this.statusManager.setStatus(ConnectionStatus.DISCONNECTED, connectError)
       throw connectError
     }
@@ -1350,7 +1360,7 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
    * Schedule a reconnection attempt with exponential backoff
    */
   private scheduleReconnect(): void {
-    if (this.destroyed) return
+    if (this.destroyed || this.authRejected) return
     if (!this.reconnectionConfig.enabled) return
     if (this.reconnectionConfig.maxRetries > 0 &&
         this.reconnectAttempts >= this.reconnectionConfig.maxRetries) {
@@ -1369,7 +1379,7 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
 
     this.reconnectTimer = setTimeout(async () => {
       this.reconnectTimer = null
-      if (this.destroyed) return
+      if (this.destroyed || this.authRejected) return
 
       try {
         await this.ensureSSHConnection()

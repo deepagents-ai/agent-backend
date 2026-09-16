@@ -50,11 +50,6 @@ dev: sync-assets ## Start dev environment (daemon in Docker; NEXTJS=1 adds the N
 		echo "Install Docker: https://docs.docker.com/get-docker/"; \
 		LOCAL=1 mprocs; \
 	else \
-		mkdir -p tmp/deploy; \
-		if ! docker images | grep -q "agentbe-daemon.*latest"; then \
-			echo "Docker image not found. Building agentbe-daemon:latest..."; \
-			$(MAKE) docker-build; \
-		fi; \
 		mprocs; \
 	fi
 
@@ -110,11 +105,6 @@ nextjs: sync-assets build-typescript ## Run NextJS demo app
 		echo "Warning: Docker not installed — using local daemon."; \
 		NEXTJS=1 LOCAL=1 mprocs; \
 	else \
-		mkdir -p tmp/deploy; \
-		if ! docker images | grep -q "agentbe-daemon.*latest"; then \
-			echo "Docker image not found. Building agentbe-daemon:latest..."; \
-			$(MAKE) docker-build; \
-		fi; \
 		NEXTJS=1 mprocs; \
 	fi
 

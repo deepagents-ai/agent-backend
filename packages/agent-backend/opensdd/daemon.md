@@ -441,7 +441,7 @@ On receiving a shutdown signal, the daemon MUST close resources in the following
 
 ### Base Image
 
-The Docker image MUST use `ubuntu:22.04` as the base image.
+The Docker image MUST use `ubuntu:26.04` as the base image.
 
 ### Build Arguments
 
@@ -527,6 +527,58 @@ The image MUST support three extension mechanisms:
 ### Dev Hot-Reload
 
 When `USE_LOCAL_BUILD=1` and the local source directory exists at `/app/agent-backend/src`, the entrypoint MUST use `tsx --watch` to run the daemon from source with automatic restart on file changes.
+
+---
+
+## Local Docker Launcher
+
+The `agent-backend` CLI provides `start-docker` and `stop-docker` subcommands. They are the single supported way to run the daemon image as a container on the local machine — for application use and for repository development alike. Clients connect to the launched container with `RemoteFilesystemBackend` (host `localhost`), because the container is a separate isolation boundary even though it runs on the same machine.
+
+### `start-docker` Flags
+
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `--port <port>` | integer | `3001` | Host port, also used as the container's `PORT` |
+| `--bind <addr>` | string | `127.0.0.1` | Host address the port is published on |
+| `--auth-token <token>` | string | launcher's `AUTH_TOKEN` env var, else none | Passed to the container as `AUTH_TOKEN` |
+| `--workspace <path>` | string | none | Host directory bind-mounted at `/var/workspace` |
+| `--env-file <path>` | string | none | Env file passed to the container |
+| `--image <ref>` | string | `ghcr.io/aspects-ai/agentbe-daemon:latest` | Image to run |
+| `--build` | boolean | `false` | Build the image from source and run it (source checkout only) |
+| `--dev` | boolean | `false` | Run from mounted source with hot reload (source checkout only) |
+| `--foreground` | boolean | `false` | Stay attached to the container instead of detaching |
+
+Validation:
+- `--port` MUST be between 1024 and 65535 inclusive.
+- `--image` MUST NOT be combined with `--build` or `--dev`.
+- Flags that require a value MUST reject a missing value or a value beginning with `--`.
+- Unrecognized flags and positional arguments MUST cause exit code 1.
+- A `--workspace` path MUST be resolved to an absolute path and created if it does not exist.
+
+Given `agent-backend start-docker --port 99`, the launcher MUST exit with code 1 without invoking Docker.
+
+### Source Checkout Requirement
+
+`--build` and `--dev` require a source checkout: a directory, at or above the installed package, containing `agentbe-daemon/docker/Dockerfile`. If none is found, the launcher MUST exit with code 1 with a message stating that the flag requires a source checkout and suggesting the default published image instead.
+
+With either flag, the image is the locally built `agentbe-daemon:latest`:
+- `--build` MUST build the TypeScript package and then the image, even if the image already exists.
+- `--dev` MUST build the image only if it does not exist. It MUST also refresh the standalone production dependency folder mounted into the container, then mount that folder at `/app/agent-backend` and the package's TypeScript source at `/app/agent-backend/src` (both read-only), and set `USE_LOCAL_BUILD=1` so the entrypoint hot-reloads (see Dev Hot-Reload).
+
+### Start Lifecycle
+
+1. If Docker is not reachable, the launcher MUST exit with code 1 with a message saying Docker is required.
+2. The container MUST be named `agentbe-daemon`. If a container with that name already exists (running or stopped), the launcher MUST remove it before starting, so every `start-docker` applies the flags given.
+3. For an image that is not built locally (the default or `--image`), the launcher MUST pull it before starting so `latest` is current — except when the reference names no registry host (its first path segment contains no `.` or `:` and is not `localhost`, e.g. `agentbe-daemon:latest`) and the image already exists locally, in which case the launcher MUST use the local image without pulling or warning. If the pull fails because the image has no build for the host architecture, the launcher MUST pull and run it as `linux/amd64` (emulated) and print a note saying so. If the pull fails for any other reason and the image already exists locally, the launcher MUST warn and use the local copy; otherwise it MUST exit with code 1.
+4. The container MUST publish `<bind>:<port>:<port>` and set `PORT=<port>`. It MUST NOT publish the conventional SSH port. Values from `--env-file` MUST be overridden by the explicit `PORT` and `AUTH_TOKEN` values.
+5. When no auth token is supplied by flag, launcher environment, or env file, the launcher MUST print a warning that the daemon is unauthenticated.
+6. When no `--workspace` is given, the launcher MUST print a note that workspace files live only inside the container and are lost when it is removed.
+7. **Detached (default):** the launcher MUST start the container in the background, then poll `GET /health` on the published port until it responds `200` or 120 seconds elapse. On success it MUST print the MCP URL and the `RemoteFilesystemBackend` connection settings (host, port, root directory, whether a token is required) and exit 0. It MUST NOT print any SSH password. On timeout it MUST print the container's recent logs, leave the container in place for inspection, and exit 1.
+8. **Foreground (`--foreground`):** the launcher MUST run the container attached with its output streamed to the terminal, and the container MUST be removed when it exits. On SIGINT or SIGTERM the launcher MUST stop the container. The launcher MUST exit with the container's exit code.
+
+### `stop-docker`
+
+MUST stop and remove the `agentbe-daemon` container. If no such container exists, it MUST print that nothing is running and exit 0.
 
 ---
 

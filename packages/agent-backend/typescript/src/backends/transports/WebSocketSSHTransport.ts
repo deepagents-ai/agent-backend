@@ -31,6 +31,20 @@ export interface WebSocketSSHTransportConfig {
   keepaliveInterval?: number
 }
 
+/** WebSocket close code the daemon uses when it rejects the auth token */
+export const WS_CLOSE_UNAUTHORIZED = 4001
+
+/** Max time to wait for the WebSocket close code after a failed SSH handshake */
+const CLOSE_CODE_WAIT_MS = 500
+
+/** Thrown when the daemon rejects the connection's auth token */
+export class WebSocketAuthError extends Error {
+  constructor() {
+    super('Daemon rejected the auth token (WebSocket closed 4001 Unauthorized). Check authToken.')
+    this.name = 'WebSocketAuthError'
+  }
+}
+
 export interface ExecResult {
   stdout: string
   stderr: string
@@ -80,41 +94,61 @@ export class WebSocketSSHTransport extends EventEmitter {
         url += `?token=${encodeURIComponent(this.config.authToken)}`
       }
 
+      let settled = false
+      const fail = (err: Error) => {
+        if (settled) return
+        settled = true
+        clearTimeout(timeoutId)
+        this.cleanup()
+        reject(err)
+      }
+
       // Connection timeout
       const timeoutId = setTimeout(() => {
-        if (this.ws) {
-          this.ws.close()
-          this.ws = null
-        }
-        reject(new Error(`Connection timeout after ${this.config.timeout}ms`))
+        fail(new Error(`Connection timeout after ${this.config.timeout}ms`))
       }, this.config.timeout)
 
-      this.ws = new WebSocket(url)
+      const ws = new WebSocket(url)
+      this.ws = ws
+      const closeCode = new Promise<number>((res) => ws.once('close', (code) => res(code)))
 
-      this.ws.on('open', () => {
+      ws.on('open', () => {
         // WebSocket connected, now establish SSH session
         this.establishSSH()
           .then(() => {
+            if (settled) return
+            settled = true
             clearTimeout(timeoutId)
             this._connected = true
             this.emit('connect')
             resolve()
           })
-          .catch((err) => {
-            clearTimeout(timeoutId)
-            this.cleanup()
-            reject(err)
+          .catch(async (err: Error) => {
+            // An auth rejection closes the socket mid-handshake, so the SSH layer
+            // reports a generic write error first. Prefer the close code if one arrives.
+            if (ws.readyState !== WebSocket.OPEN) {
+              const code = await Promise.race([
+                closeCode,
+                new Promise<undefined>((res) => setTimeout(() => res(undefined), CLOSE_CODE_WAIT_MS)),
+              ])
+              if (code === WS_CLOSE_UNAUTHORIZED) {
+                fail(new WebSocketAuthError())
+                return
+              }
+            }
+            fail(err)
           })
       })
 
-      this.ws.on('error', (err) => {
-        clearTimeout(timeoutId)
-        this.cleanup()
-        reject(err)
+      ws.on('error', (err) => {
+        fail(err)
       })
 
-      this.ws.on('close', (code, reason) => {
+      ws.on('close', (code, reason) => {
         this._connected = false
+        fail(code === WS_CLOSE_UNAUTHORIZED
+          ? new WebSocketAuthError()
+          : new Error(`WebSocket closed before the SSH session was established (code ${code})`))
         this.cleanup()
         this.emit('close', code, reason.toString())
       })

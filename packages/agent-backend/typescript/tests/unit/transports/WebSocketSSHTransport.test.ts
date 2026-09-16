@@ -14,7 +14,7 @@ vi.mock('../../../src/utils/ssh2.js', () => ({
   SSH2Client: vi.fn()
 }))
 
-import { WebSocketSSHTransport } from '../../../src/backends/transports/WebSocketSSHTransport.js'
+import { WebSocketAuthError, WebSocketSSHTransport } from '../../../src/backends/transports/WebSocketSSHTransport.js'
 import WebSocket from 'ws'
 import { SSH2Client as SSHClient } from '../../../src/utils/ssh2.js'
 
@@ -206,6 +206,50 @@ describe('WebSocketSSHTransport', () => {
       await transport.connect()
 
       expect(WebSocket).toHaveBeenCalledWith(expect.stringContaining('wss://'))
+    })
+  })
+
+  describe('Authentication rejection', () => {
+    function rejectingSSHClient(ws: EventEmitter & { readyState: number }, closeCode: number, closeFirst: boolean) {
+      const client = createMockSSHClient()
+      client.connect = vi.fn(() => {
+        // Daemon closes the socket; SSH layer then fails with a generic write error
+        setTimeout(() => {
+          ws.readyState = 3
+          if (closeFirst) ws.emit('close', closeCode, Buffer.from('Unauthorized'))
+          client.emit('error', new Error('WebSocket is not open'))
+          if (!closeFirst) setTimeout(() => ws.emit('close', closeCode, Buffer.from('Unauthorized')), 10)
+        }, 0)
+      })
+      return client
+    }
+
+    it.each([
+      ['before', true],
+      ['after', false],
+    ])('rejects with WebSocketAuthError when 4001 arrives %s the SSH error', async (_label, closeFirst) => {
+      const mockWs = createMockWebSocket()
+      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(SSHClient).mockImplementation(() => rejectingSSHClient(mockWs, 4001, closeFirst) as any)
+
+      const transport = new WebSocketSSHTransport({ host: 'example.com', port: 3001, authToken: 'wrong' })
+
+      const err = await transport.connect().catch((e) => e)
+      expect(err).toBeInstanceOf(WebSocketAuthError)
+      expect(err.message).toContain('rejected the auth token')
+      expect(transport.connected).toBe(false)
+    })
+
+    it('keeps the original error for other close codes', async () => {
+      const mockWs = createMockWebSocket()
+      vi.mocked(WebSocket).mockImplementation(() => mockWs as any)
+      vi.mocked(SSHClient).mockImplementation(() => rejectingSSHClient(mockWs, 1006, false) as any)
+
+      const transport = new WebSocketSSHTransport({ host: 'example.com', port: 3001 })
+
+      const err = await transport.connect().catch((e) => e)
+      expect(err).not.toBeInstanceOf(WebSocketAuthError)
+      expect(err.message).not.toContain('auth token')
     })
   })
 

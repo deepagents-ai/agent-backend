@@ -67,45 +67,16 @@ procs:
 
   # Docker daemon — simulates remote deployment
   # Runs by default; skip with LOCAL=1
-  # Mounts TypeScript source into container; tsx --watch handles hot-reload
+  # Uses the same launcher as users (agent-backend start-docker) in --dev mode:
+  # builds the image if missing, mounts TypeScript source, tsx --watch hot-reloads
   agentbe-daemon:
     shell: |
       [ -n "$K8S" ] && echo "Skipped (K8S=1 session)" && exit 0
       [ "$LOCAL" = "1" ] && echo "Skipped (LOCAL=1, using agentbe-local)" && exit 0
-
-      # Trap signals to properly stop container
-      cleanup() {
-        echo "Stopping container..."
-        docker stop agentbe-daemon 2>/dev/null || true
-        exit 0
-      }
-      trap cleanup SIGINT SIGTERM
-
-      # Clean up any existing container first
-      docker stop agentbe-daemon 2>/dev/null || true
-      docker rm agentbe-daemon 2>/dev/null || true
-
-      # Do initial deploy (sets up node_modules for the container)
-      echo "Creating standalone deploy folder..."
-      rm -rf tmp/deploy
-      pnpm --filter=agent-backend deploy --prod --legacy tmp/deploy
-
-      # Start container in background so trap can catch signals
-      ENV_FILE=".env.example"
-      [ -f ".env" ] && ENV_FILE=".env"
-      echo "Starting container (tsx --watch on mounted source)..."
-      docker run --rm \
-        --name agentbe-daemon \
-        -p 3001:3001 \
-        -p 2222:22 \
-        -v "$(pwd)/tmp/deploy:/app/agent-backend:ro" \
-        -v "$(pwd)/packages/agent-backend/typescript/src:/app/agent-backend/src:ro" \
-        -e USE_LOCAL_BUILD=1 \
-        --env-file "$ENV_FILE" \
-        agentbe-daemon:latest &
-
-      # Wait for container (allows trap to work)
-      wait
+      ENV_FILE="$(pwd)/.env.example"
+      [ -f ".env" ] && ENV_FILE="$(pwd)/.env"
+      cd packages/agent-backend/typescript
+      exec npx tsx src/cli.ts start-docker --dev --foreground --env-file "$ENV_FILE"
     stop: "SIGTERM"
     env:
       FORCE_COLOR: "1"

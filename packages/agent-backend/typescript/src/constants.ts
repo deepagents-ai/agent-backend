@@ -53,6 +53,9 @@ export const ERROR_CODES = {
   WRITE_FAILED: 'WRITE_FAILED',
   LS_FAILED: 'LS_FAILED',
 
+  // Connection errors
+  AUTH_FAILED: 'AUTH_FAILED',
+
   // Validation errors
   EMPTY_COMMAND: 'EMPTY_COMMAND',
   EMPTY_PATH: 'EMPTY_PATH',

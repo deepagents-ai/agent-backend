@@ -102,6 +102,12 @@ The delay sequence follows `min(initialDelay * multiplier^attempt, maxDelay)`. O
 
 If `destroy()` is called while a reconnection is pending, the scheduled retry MUST be cancelled.
 
+**Authentication rejection:** When the daemon rejects the SSH-over-WebSocket connection as unauthorized (it closes the WebSocket with code `4001`), the connection attempt MUST fail with a Backend Error whose code is `AUTH_FAILED` and whose message states that the daemon rejected the auth token. It MUST NOT surface a generic transport error (e.g., "WebSocket is not open") in its place. An authentication rejection MUST NOT schedule a reconnection attempt, and any reconnection already scheduled for that failure MUST be cancelled — retrying with the same token cannot succeed. A later operation MAY attempt a fresh connection.
+
+Given a daemon started with auth token `"right"` and a client configured with `authToken: "wrong"`:
+- The first file operation MUST reject with code `AUTH_FAILED`.
+- Status MUST end in "disconnected" and MUST NOT move to "reconnecting".
+
 #### MCP Channel (HTTP)
 
 The MCP channel uses stateless HTTP requests. There is no persistent connection and no daemon-side session state. Each tool call is an independent HTTP request to the daemon's MCP endpoint.
@@ -425,6 +431,7 @@ Implementations SHOULD use consistent error codes across backends:
 | INVALID_CONFIGURATION | Configuration validation failed |
 | DANGEROUS_OPERATION | Dangerous command blocked |
 | CONNECTION_CLOSED | Connection lost (remote) |
+| AUTH_FAILED | Daemon rejected the auth token (remote) |
 | KEY_NOT_FOUND | Key does not exist (memory) |
 
 ---

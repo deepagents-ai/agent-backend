@@ -25,8 +25,8 @@ agent-backend daemon --rootDir /tmp/agentbe-workspace --scopePath users/user1 --
 # Start full daemon (Linux only, requires root)
 agent-backend daemon --rootDir /var/workspace --auth-token secret123
 
-# Or use Docker
-agent-backend start-docker
+# Or run it in Docker, then connect with RemoteFilesystemBackend (host: 'localhost')
+agent-backend start-docker --auth-token secret123
 ```
 
 ## Scoping
@@ -216,21 +216,24 @@ agent-backend daemon --rootDir /var/workspace \
 
 ### Docker
 
-```bash
-# Start Docker container
-agent-backend start-docker
+`agent-backend start-docker` is the way to run the daemon container locally. It runs `ghcr.io/aspects-ai/agentbe-daemon:latest` as a container named `agentbe-daemon`, replacing any existing one, waits for `/health`, and prints the `RemoteFilesystemBackend` connection settings.
 
-# Start with rebuild
+```bash
+# Start on 127.0.0.1:3001 with a persistent workspace
+agent-backend start-docker --workspace ./workspace --auth-token secret123
+
+# Build the image from source first (source checkout only)
 agent-backend start-docker --build
 
-# Stop container
+# Stop and remove the container
 agent-backend stop-docker
 ```
 
-The Docker container runs:
-- MCP server + SSH-over-WebSocket on port 3001
-- Conventional SSH on port 22 (when `CONVENTIONAL_SSH=true`)
-- Default credentials: `root:agents`
+Other flags: `--port`, `--bind`, `--env-file`, `--image`, `--dev` (hot reload, source checkout only), `--foreground`. Run `agent-backend --help` for details.
+
+The container serves MCP and SSH-over-WebSocket on the published port. Conventional SSH (port 22, `CONVENTIONAL_SSH=true`) is not published by the launcher.
+
+Your app connects with `RemoteFilesystemBackend` and `host: 'localhost'` -- the container is a separate isolation boundary even on the same machine.
 
 See [opensdd/daemon.md](../packages/agent-backend/opensdd/daemon.md#docker-image) for the full Docker image specification including build arguments, environment variables, and entrypoint behavior.
 

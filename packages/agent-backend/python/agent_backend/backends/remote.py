@@ -15,7 +15,10 @@ from agent_backend.backends.path_validation import (
     validate_within_boundary,
 )
 from agent_backend.backends.status import ConnectionStatusManager
-from agent_backend.backends.transports.websocket_ssh import WebSocketSSHTransport
+from agent_backend.backends.transports.websocket_ssh import (
+    WebSocketAuthError,
+    WebSocketSSHTransport,
+)
 from agent_backend.safety import is_command_safe, is_dangerous
 from agent_backend.types import (
     BackendError,
@@ -101,6 +104,13 @@ class RemoteFilesystemBackend:
             await self._transport.connect()
             self._status_manager.set_status(ConnectionStatus.CONNECTED)
             self._retry_count = 0
+        except WebSocketAuthError as e:
+            # Retrying with the same token cannot succeed, so never reconnect
+            error = BackendError(
+                f"SSH-WS authentication failed: {e}", ErrorCode.AUTH_FAILED
+            )
+            self._status_manager.set_status(ConnectionStatus.DISCONNECTED, error=error)
+            raise error from e
         except Exception as e:
             self._status_manager.set_status(ConnectionStatus.DISCONNECTED, error=e)
             if self._reconnection.enabled:

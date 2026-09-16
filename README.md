@@ -143,7 +143,7 @@ await backend.write("hello.txt", "Hello World!")
 
 </details>
 
-On your remote VM or container, run the agentbe-daemon:
+On a remote VM, or in a Docker container on your own machine, run the agentbe-daemon:
 
 ```bash
 npm install -g agent-backend
@@ -151,11 +151,11 @@ npm install -g agent-backend
 # Start full daemon (Linux only, requires root)
 agent-backend daemon --rootDir /var/workspace --auth-token $SECRET
 
-# Or use Docker
-agent-backend start-docker
+# Or run it in Docker (listens on 127.0.0.1:3001; add --bind 0.0.0.0 on a VM)
+agent-backend start-docker --auth-token $SECRET
 ```
 
-You now have full access to the VM instance at port 3001, sandboxed to `rootDir`.
+You now have full access to the daemon at port 3001, sandboxed to `rootDir`. For a container on the same machine, connect with `host: 'localhost'`.
 
 <details open>
 <summary>TypeScript</summary>
@@ -285,7 +285,7 @@ files = await backend.readdir("src")
 
 ### Filesystem Backend - Remote
 
-Same API, operations run on a remote server via SSH:
+Same API, operations run through an agentbe-daemon on another host or in a local Docker container:
 
 <details open>
 <summary>TypeScript</summary>
@@ -296,10 +296,7 @@ import { RemoteFilesystemBackend } from 'agent-backend'
 const backend = new RemoteFilesystemBackend({
   rootDir: '/var/workspace',
   host: 'build-server.example.com',
-  sshAuth: {
-    type: 'password',
-    credentials: { username: 'agent', password: 'secure-pass' }
-  }
+  authToken: 'secure-token'
 })
 
 // Same operations, executed remotely
@@ -389,6 +386,8 @@ await backend.destroy()
 ### The Agent Backend Daemon
 
 For remote execution, the **agentbe-daemon** runs on a remote host and provides both MCP and SSH access. Your application connects via `RemoteFilesystemBackend`, which handles all the protocol details.
+
+"Remote" means across an isolation boundary, not necessarily another machine. When the daemon runs in a local container (`agent-backend start-docker`), your app still uses `RemoteFilesystemBackend`, with `host: 'localhost'`.
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {
@@ -519,7 +518,7 @@ By default, `isolation: 'auto'` detects and uses the best available method:
 1. **Bubblewrap** (Linux) - OS-level namespace isolation via user namespaces. A real sandbox.
 2. **Software** (fallback) - Path validation within `rootDir` plus footgun-only command sanity checks. **Not a sandbox.** Intended for local development, or when the host already provides isolation (Kubernetes pod, VM, Docker container).
 
-For non-development use, run the backend inside Docker via `agent-backend start-docker` rather than relying on the software fallback.
+For non-development use, run the daemon inside Docker via `agent-backend start-docker` and connect with `RemoteFilesystemBackend` (`host: 'localhost'`) rather than relying on the software fallback.
 
 <details open>
 <summary>TypeScript</summary>

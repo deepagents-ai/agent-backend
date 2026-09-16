@@ -350,27 +350,17 @@ sequenceDiagram
 
 **Remote server (Docker):**
 ```bash
-# Start Docker container with full daemon
-agent-backend start-docker --build
-
-# Or manually:
-docker run -d \
-  -p 2222:22 \
-  -p 3001:3001 \
-  -e SSH_USERS="agent:secure-password" \
-  -e AUTH_TOKEN="your-secure-token" \
-  agentbe/remote-backend:latest
+# Start the daemon container (add --bind 0.0.0.0 to accept non-local connections)
+agent-backend start-docker --auth-token "your-secure-token"
 ```
 
 **Application code (pseudocode):**
 ```text
 backend = RemoteFilesystemBackend(
-  host:         "build-server.com",
-  sshPort:      2222,
+  host:         "build-server.com",   // "localhost" for a container on the same machine
   port:         3001,
   rootDir:      "/var/workspace",
-  sshAuth:      {type: "password", credentials: {username: "agent", password: "secure-password"}},
-  authToken:    "your-secure-token"
+  authToken:    "your-secure-token"   // transport defaults to SSH-WS on the same port
 )
 
 // Connect to remote server
