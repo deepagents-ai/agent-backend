@@ -15,6 +15,22 @@ import websockets
 
 logger = logging.getLogger(__name__)
 
+WS_CLOSE_UNAUTHORIZED = 4001
+"""WebSocket close code the daemon uses when it rejects the auth token."""
+
+_CLOSE_CODE_WAIT_S = 0.5
+"""Max time to wait for the WebSocket close code after a failed SSH handshake."""
+
+
+class WebSocketAuthError(ConnectionError):
+    """Raised when the daemon rejects the connection's auth token."""
+
+    def __init__(self) -> None:
+        super().__init__(
+            "Daemon rejected the auth token (WebSocket closed 4001 Unauthorized). "
+            "Check auth_token."
+        )
+
 
 class _WebSocketTransport(asyncio.Transport):
     """asyncio.Transport that bridges writes to a WebSocket connection."""
@@ -156,17 +172,34 @@ class WebSocketSSHTransport:
         # We wrap the WebSocket in a _WebSocketTunnel that implements the
         # create_connection() interface asyncssh expects for its tunnel param.
         tunnel = _WebSocketTunnel(self._ws)
-        self._ssh_conn = await asyncssh.connect(
-            self._host,
-            tunnel=tunnel,
-            known_hosts=None,
-            username="agent",
-            password=self._auth_token or "",
-            keepalive_interval=self._keepalive_interval,
-            keepalive_count_max=self._keepalive_count_max,
-        )
+        try:
+            self._ssh_conn = await asyncssh.connect(
+                self._host,
+                tunnel=tunnel,
+                known_hosts=None,
+                username="agent",
+                password=self._auth_token or "",
+                keepalive_interval=self._keepalive_interval,
+                keepalive_count_max=self._keepalive_count_max,
+            )
+        except Exception as exc:
+            # An auth rejection closes the socket mid-handshake, so the SSH layer
+            # reports a generic error first. Prefer the close code if one arrives.
+            if await self._closed_unauthorized():
+                raise WebSocketAuthError() from exc
+            raise
 
         self._connected = True
+
+    async def _closed_unauthorized(self) -> bool:
+        """Whether the daemon closed the WebSocket as unauthorized."""
+        if self._ws is None:
+            return False
+        try:
+            await asyncio.wait_for(self._ws.wait_closed(), _CLOSE_CODE_WAIT_S)
+        except TimeoutError:
+            return False
+        return self._ws.close_code == WS_CLOSE_UNAUTHORIZED
 
     async def get_sftp(self) -> asyncssh.SFTPClient:
         """Get or create an SFTP session."""

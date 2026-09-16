@@ -228,16 +228,13 @@ Build the `agentbe-daemon` Docker image:
 make docker-build
 ```
 
-The image is used by `make dev` to simulate a remote deployment. The Docker daemon exposes:
-
-- Port 3001: MCP server
-- Port 2222: SSH access
+`make dev` runs the image via `agent-backend start-docker --dev --foreground` (building it if missing) to simulate a remote deployment. The container exposes port 3001 for MCP and SSH-over-WebSocket.
 
 ### Troubleshooting
 
 #### Port Conflicts
 
-If ports 3000, 3001, or 2222 are in use:
+If ports 3000 or 3001 are in use:
 
 ```bash
 lsof -ti:3001 | xargs kill -9    # MCP server

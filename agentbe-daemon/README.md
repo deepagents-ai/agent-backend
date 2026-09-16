@@ -10,7 +10,6 @@ A server daemon that exposes a single port serving both MCP (HTTP) and SSH-over-
 - [CLI Reference](#cli-reference)
 - [Docker Configuration](#docker-configuration)
   - [Environment Variables](#environment-variables)
-  - [Docker Compose](#docker-compose)
 - [Cloud Deployment](#cloud-deployment)
 - [Extending the Image](#extending-the-image)
 - [Conventional SSH (Opt-In)](#conventional-ssh-opt-in)
@@ -43,20 +42,30 @@ Conventional SSH (sshd on a separate port) is available as an [opt-in legacy opt
 
 ### Docker (recommended)
 
-```bash
-docker run -d \
-  --name agentbe-daemon \
-  -p 3001:3001 \
-  -v $(pwd)/workspace:/var/workspace \
-  -e AUTH_TOKEN=your-secret-token \
-  ghcr.io/aspects-ai/agentbe-daemon:latest
-```
-
-Verify it is running:
+`agent-backend start-docker` is the way to run the daemon container locally:
 
 ```bash
-curl http://localhost:3001/health
+npm install -g agent-backend
+
+agent-backend start-docker --workspace ./workspace --auth-token your-secret-token
+agent-backend stop-docker
 ```
+
+`start-docker` runs `ghcr.io/aspects-ai/agentbe-daemon:latest` as a container named `agentbe-daemon`, published on `127.0.0.1:3001`. It replaces any existing `agentbe-daemon` container, waits for `/health`, and prints the `RemoteFilesystemBackend` connection settings. `stop-docker` stops and removes the container.
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--port <port>` | `3001` | Host and container port |
+| `--bind <addr>` | `127.0.0.1` | Host address to publish on |
+| `--auth-token <token>` | `$AUTH_TOKEN`, else none | Auth token for MCP and SSH-WS |
+| `--workspace <path>` | none | Host directory mounted at `/var/workspace`. Without it, files are lost when the container is removed. |
+| `--env-file <path>` | none | Env file passed to the container |
+| `--image <ref>` | `ghcr.io/aspects-ai/agentbe-daemon:latest` | Image to run |
+| `--build` | off | Build the image from source first (source checkout only) |
+| `--dev` | off | Hot-reload from mounted source (source checkout only) |
+| `--foreground` | off | Stay attached instead of detaching |
+
+Conventional SSH is not published by the launcher.
 
 ### npm
 
@@ -66,19 +75,9 @@ npm install -g agent-backend
 agent-backend daemon --rootDir ./workspace --auth-token your-secret-token
 ```
 
-### Docker CLI helper
-
-```bash
-npm install -g agent-backend
-
-agent-backend start-docker            # start container
-agent-backend start-docker --build    # rebuild and restart
-agent-backend stop-docker             # stop container
-```
-
 ## Connect from Your Application
 
-SSH-WS is the default transport. A single host/port/token is all you need:
+SSH-WS is the default transport. A single host/port/token is all you need. A container on the same machine is still "remote" -- use `RemoteFilesystemBackend` with `host: 'localhost'`:
 
 ```typescript
 import { RemoteFilesystemBackend } from 'agent-backend'
@@ -166,28 +165,8 @@ agent-backend daemon --rootDir <path> [OPTIONS]
 |----------|---------|-------------|
 | `CONVENTIONAL_SSH` | `false` | Set to `true` to enable sshd |
 | `SSH_PORT` | `22` | SSH daemon port inside container |
-| `SSH_HOST_PORT` | `2222` | Host-mapped SSH port (docker-compose) |
 | `SSH_USERS` | `root:agents` | Comma-separated `user:pass` pairs |
 | `SSH_PUBLIC_KEY` | none | SSH public key for key auth |
-
-### Docker Compose
-
-Minimal compose file using the default SSH-WS transport:
-
-```yaml
-services:
-  agentbe-daemon:
-    image: ghcr.io/aspects-ai/agentbe-daemon:latest
-    ports:
-      - "3001:3001"
-    volumes:
-      - ./workspace:/var/workspace
-    environment:
-      - AUTH_TOKEN=your-secret-token
-    restart: unless-stopped
-```
-
-See `agentbe-daemon/docker/docker-compose.yml` for a full example with all options.
 
 ## Cloud Deployment
 
@@ -353,12 +332,13 @@ If you are developing agent-backend itself, use the Makefile and mprocs for a be
 make install          # install all dependencies
 make dev              # daemon in Docker, simulating a remote deployment
 make dev-local        # daemon directly on the host, no Docker
-make docker-build     # build the agentbe-daemon Docker image
+make docker-build     # build the agentbe-daemon Docker image (build only)
 make dev-down         # tear down local dev infrastructure
 ```
 
-`make dev` launches the [mprocs](https://github.com/pvolok/mprocs) TUI running the
-daemon inside `agentbe-daemon:latest`, with `packages/agent-backend/typescript/src`
+`make dev` launches the [mprocs](https://github.com/pvolok/mprocs) TUI running
+`agent-backend start-docker --dev --foreground`: the daemon runs inside
+`agentbe-daemon:latest` (built if missing), with `packages/agent-backend/typescript/src`
 mounted into the container and `tsx --watch` handling hot-reload. `make dev-local`
 (`LOCAL=1 mprocs`) runs the same daemon directly on the host instead. Add
 `NEXTJS=1` or use `make nextjs` to bring up the NextJS example alongside it.
@@ -366,22 +346,14 @@ mounted into the container and `tsx --watch` handling hot-reload. `make dev-loca
 ### Manual Docker Testing
 
 ```bash
-# Build image (from monorepo root)
-docker build -f agentbe-daemon/docker/Dockerfile -t agentbe-daemon:latest .
-
-# Run container
-docker run -d \
-  --name agentbe-daemon \
-  -p 3001:3001 \
-  -v $(pwd)/workspace:/var/workspace \
-  -e AUTH_TOKEN=dev-token \
-  agentbe-daemon:latest
+# From packages/agent-backend/typescript: build the image from source and run it
+npx tsx src/cli.ts start-docker --build --workspace ./workspace --auth-token dev-token
 
 # View logs
 docker logs -f agentbe-daemon
 
 # Stop and remove
-docker stop agentbe-daemon && docker rm agentbe-daemon
+npx tsx src/cli.ts stop-docker
 ```
 
 ## License

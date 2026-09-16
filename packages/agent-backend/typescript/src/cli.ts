@@ -10,24 +10,35 @@
  *
  * Commands:
  * 1. daemon: Start agentbe-daemon (MCP + SSH-WS server)
- * 2. start-docker: Start Docker-based agentbe-daemon service
- * 3. stop-docker: Stop Docker-based agentbe-daemon service
+ * 2. start-docker: Run the daemon image as a local container
+ * 3. stop-docker: Stop and remove that container
  */
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js'
 import { execSync, spawn } from 'child_process'
 import express from 'express'
-import { readFileSync } from 'fs'
-import { dirname, join } from 'path'
+import { existsSync, mkdirSync, readFileSync, rmSync } from 'fs'
+import { dirname, join, resolve } from 'path'
 import { fileURLToPath } from 'url'
+import {
+  buildDockerRunArgs,
+  CONTAINER_NAME,
+  CONTAINER_WORKSPACE,
+  DEFAULT_DAEMON_IMAGE,
+  envFileSetsAuthToken,
+  hasRegistryHost,
+  isMissingPlatformError,
+  LOCAL_DAEMON_IMAGE,
+  parseStartDockerArgs,
+  resolveImage
+} from './cli/docker-config.js'
 import { LocalFilesystemBackend } from './index.js'
 import { AgentBackendMCPServer, createWebSocketSSHServer } from './server/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
 const PACKAGE_ROOT = join(__dirname, '..')
-const DEPLOY_DIR = join(PACKAGE_ROOT, 'deploy')
 
 // Read version from package.json
 const pkg = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf-8'))
@@ -581,156 +592,250 @@ function startSshDaemon(config) {
 }
 
 // ─────────────────────────────────────────────────────────────────
-// Docker Remote Backend Management
+// Local Docker Launcher (start-docker / stop-docker)
 // ─────────────────────────────────────────────────────────────────
 
+const HEALTH_TIMEOUT_MS = 120_000
+
 async function handleStartDocker(args) {
-  const shouldBuild = args.includes('--build')
-
-  console.log('🚀 Starting Agent Backend remote service...')
-
-  // Check if Docker is available
-  try {
-    execSync('docker --version', { stdio: 'ignore' })
-  } catch {
-    console.error('❌ Docker is required for the remote backend')
-    console.error('   Please install Docker Desktop: https://www.docker.com/products/docker-desktop/')
+  const { config, error } = parseStartDockerArgs(args, process.env)
+  if (error) {
+    console.error(`❌ ${error}`)
+    console.error('   Run "agent-backend help" for usage')
     process.exit(1)
   }
 
+  if (!dockerAvailable()) {
+    console.error('❌ Docker is required but is not reachable (is Docker running?)')
+    console.error('   Install Docker: https://docs.docker.com/get-docker/')
+    process.exit(1)
+  }
+
+  let repoRoot = null
+  if (config.build || config.dev) {
+    repoRoot = findSourceCheckout()
+    if (!repoRoot) {
+      const flag = config.build ? '--build' : '--dev'
+      console.error(`❌ ${flag} requires an agent-backend source checkout (agentbe-daemon/docker/Dockerfile not found)`)
+      console.error(`   Omit ${flag} to run the published image: ${DEFAULT_DAEMON_IMAGE}`)
+      process.exit(1)
+    }
+  }
+
+  if (config.workspace) {
+    config.workspace = resolve(config.workspace)
+    mkdirSync(config.workspace, { recursive: true })
+  }
+  if (config.envFile) {
+    config.envFile = resolve(config.envFile)
+  }
+
   try {
-    // Build image if requested
-    if (shouldBuild) {
-      console.log('   Building Docker image...')
-      await buildImage()
-      console.log('   ✅ Docker image built successfully')
+    if (config.build || (config.dev && !imageExists(LOCAL_DAEMON_IMAGE))) {
+      await buildLocalImage(repoRoot)
     }
 
-    // Check if service is already running
-    try {
-      const output = execSync('docker ps --filter "name=agentbe-remote" --format "{{.Names}}"', {
-        encoding: 'utf8',
-        stdio: 'pipe'
-      }).trim()
-
-      if (output.includes('agentbe-remote')) {
-        if (shouldBuild) {
-          console.log('   Restarting container with new image...')
-          // Stop and remove existing container
-          await runCommand(['docker', 'stop', 'agentbe-remote-backend']).catch(() => { })
-          await runCommand(['docker', 'rm', 'agentbe-remote-backend']).catch(() => { })
-        } else {
-          console.log('✅ Remote backend is already running')
-          console.log('   SSH available at: root@localhost:2222')
-          console.log('   Default password: agents')
-          return
-        }
-      }
-    } catch {
-      // Service not running, continue
+    let devMounts
+    if (config.dev) {
+      devMounts = await prepareDevMounts(repoRoot)
     }
 
-    try {
-      // Use docker-compose if available
+    const platform = config.build || config.dev ? undefined : await pullImage(resolveImage(config))
+
+    if (containerExists()) {
+      console.log(`   Replacing existing ${CONTAINER_NAME} container...`)
+      await runCommand(['docker', 'rm', '-f', CONTAINER_NAME])
+    }
+
+    const tokenInEnvFile = config.envFile && existsSync(config.envFile)
+      && envFileSetsAuthToken(readFileSync(config.envFile, 'utf-8'))
+    if (!config.authToken && !tokenInEnvFile) {
+      console.warn('⚠️  No auth token set: the daemon is unauthenticated. Use --auth-token or AUTH_TOKEN.')
+    }
+    if (!config.workspace) {
+      console.warn(`ℹ️  No --workspace given: files live only inside the container and are lost when it is removed.`)
+    }
+
+    const runArgs = buildDockerRunArgs(config, devMounts, platform)
+    console.log(`🚀 Starting ${CONTAINER_NAME} (${resolveImage(config)})...`)
+
+    if (config.foreground) {
+      process.exit(await runForeground(runArgs))
+    }
+
+    await runCommand(['docker', ...runArgs])
+
+    if (!(await waitForHealth(config.port, HEALTH_TIMEOUT_MS))) {
+      console.error(`❌ Daemon did not become healthy within ${HEALTH_TIMEOUT_MS / 1000}s. Recent logs:`)
       try {
-        await runDockerCompose()
+        console.error(execSync(`docker logs --tail 50 ${CONTAINER_NAME}`, { encoding: 'utf8', stdio: 'pipe' }))
       } catch {
-        // Fallback to direct docker run
-        await runDockerDirect(shouldBuild)
+        // Container may have exited and been removed
       }
-
-      // Wait a moment for service to start
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      console.log('✅ Remote backend started successfully')
-      console.log('   SSH available at: root@localhost:2222')
-      console.log('   MCP available at: http://localhost:3001')
-      console.log('   Default password: agents')
-      console.log('')
-      console.log('   Connect using RemoteFilesystemBackend from your application')
-
-    } catch (error) {
-      throw new Error(`Failed to start remote backend: ${error.message}`)
+      console.error(`   Container left in place for inspection: docker logs ${CONTAINER_NAME}`)
+      process.exit(1)
     }
-  } catch (error) {
-    console.error(`❌ ${error.message}`)
+
+    const host = ['0.0.0.0', '127.0.0.1'].includes(config.bind) ? 'localhost' : config.bind
+    console.log(`✅ ${CONTAINER_NAME} is running`)
+    console.log(`   MCP: http://${host}:${config.port}/mcp`)
+    console.log('')
+    console.log('   Connect with RemoteFilesystemBackend:')
+    console.log(`     host: '${host}', port: ${config.port}, rootDir: '${CONTAINER_WORKSPACE}',`)
+    console.log(config.authToken || tokenInEnvFile
+      ? `     authToken: <your token>`
+      : `     (no authToken required)`)
+    console.log('')
+    console.log('   Stop with: agent-backend stop-docker')
+  } catch (err) {
+    console.error(`❌ Failed to start ${CONTAINER_NAME}: ${err.message}`)
     process.exit(1)
   }
 }
 
 async function handleStopDocker() {
-  console.log('🛑 Stopping Agent Backend remote service...')
-
+  if (!dockerAvailable()) {
+    console.error('❌ Docker is required but is not reachable (is Docker running?)')
+    process.exit(1)
+  }
+  if (!containerExists()) {
+    console.log(`ℹ️  No ${CONTAINER_NAME} container is running`)
+    return
+  }
   try {
-    // Try docker-compose down first
-    try {
-      await runCommand([
-        'docker-compose', '-f', join(DEPLOY_DIR, 'docker', 'docker-compose.yml'), 'down'
-      ])
-    } catch {
-      // Fallback to stopping containers directly
-      const containers = execSync(
-        'docker ps --filter "name=agentbe-remote" --format "{{.Names}}"',
-        { encoding: 'utf8', stdio: 'pipe' }
-      ).trim().split('\n').filter(name => name.trim())
-
-      for (const container of containers) {
-        if (container.trim()) {
-          await runCommand(['docker', 'stop', container.trim()])
-          await runCommand(['docker', 'rm', container.trim()])
-        }
-      }
-    }
-
-    console.log('✅ Remote backend stopped')
-
-  } catch (error) {
-    console.error(`❌ Failed to stop remote backend: ${error.message}`)
+    await runCommand(['docker', 'rm', '-f', CONTAINER_NAME])
+    console.log(`✅ ${CONTAINER_NAME} stopped and removed`)
+  } catch (err) {
+    console.error(`❌ Failed to stop ${CONTAINER_NAME}: ${err.message}`)
     process.exit(1)
   }
 }
 
-async function runDockerCompose() {
-  console.log('   Using docker-compose...')
-
-  await runCommand([
-    'docker-compose',
-    '-f', join(DEPLOY_DIR, 'docker', 'docker-compose.yml'),
-    'up', '-d'
-  ])
+function dockerAvailable() {
+  try {
+    execSync('docker info', { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
 }
 
-async function buildImage() {
+function containerExists() {
+  const out = execSync(
+    `docker ps -a --filter "name=^${CONTAINER_NAME}$" --format "{{.Names}}"`,
+    { encoding: 'utf8', stdio: 'pipe' }
+  ).trim()
+  return out.split('\n').includes(CONTAINER_NAME)
+}
+
+function imageExists(image) {
+  try {
+    execSync(`docker image inspect ${image}`, { stdio: 'ignore' })
+    return true
+  } catch {
+    return false
+  }
+}
+
+/** Walk up from the installed package looking for the repo's daemon Dockerfile. */
+function findSourceCheckout() {
+  let dir = PACKAGE_ROOT
+  while (true) {
+    if (existsSync(join(dir, 'agentbe-daemon', 'docker', 'Dockerfile'))) return dir
+    const parent = dirname(dir)
+    if (parent === dir) return null
+    dir = parent
+  }
+}
+
+/**
+ * Pull a published image. Returns a forced platform when the image has no
+ * build for this host (falls back to emulated linux/amd64), else undefined.
+ */
+async function pullImage(image) {
+  if (!hasRegistryHost(image) && imageExists(image)) {
+    return undefined
+  }
+  console.log(`   Pulling ${image}...`)
+  try {
+    await runCommand(['docker', 'pull', image])
+    return undefined
+  } catch (err) {
+    if (isMissingPlatformError(err.message)) {
+      console.log(`ℹ️  ${image} has no build for this architecture; running linux/amd64 under emulation (slower)`)
+      await runCommand(['docker', 'pull', '--platform', 'linux/amd64', image])
+      return 'linux/amd64'
+    }
+    if (imageExists(image)) {
+      console.warn(`⚠️  Could not pull ${image}; using the local copy`)
+      return undefined
+    }
+    throw err
+  }
+}
+
+async function buildLocalImage(repoRoot) {
+  console.log('   Building agent-backend TypeScript package...')
+  await runCommand(['pnpm', '--filter=agent-backend', 'build'], { cwd: repoRoot, stream: true })
+  console.log(`   Building ${LOCAL_DAEMON_IMAGE}...`)
   await runCommand([
     'docker', 'build',
-    '-f', join(DEPLOY_DIR, 'docker', 'Dockerfile'),
-    '-t', 'agentbe/remote-backend:latest',
-    PACKAGE_ROOT
-  ])
+    '-f', join('agentbe-daemon', 'docker', 'Dockerfile'),
+    '-t', LOCAL_DAEMON_IMAGE,
+    '.'
+  ], { cwd: repoRoot, stream: true })
 }
 
-async function runDockerDirect(shouldBuild) {
-  console.log('   Using direct docker run...')
+async function prepareDevMounts(repoRoot) {
+  const deployDir = join(repoRoot, 'tmp', 'deploy')
+  console.log('   Refreshing standalone deploy folder for hot reload...')
+  rmSync(deployDir, { recursive: true, force: true })
+  await runCommand(
+    ['pnpm', '--filter=agent-backend', 'deploy', '--prod', '--legacy', deployDir],
+    { cwd: repoRoot, stream: true }
+  )
+  return { deployDir, srcDir: join(PACKAGE_ROOT, 'src') }
+}
 
-  // Build image if not already built
-  if (!shouldBuild) {
-    console.log('   Building Docker image...')
-    await buildImage()
+function runForeground(runArgs) {
+  return new Promise((resolvePromise) => {
+    const proc = spawn('docker', runArgs, { stdio: 'inherit' })
+    let stopping = false
+    const stop = () => {
+      if (stopping) return
+      stopping = true
+      console.log(`\n   Stopping ${CONTAINER_NAME}...`)
+      spawn('docker', ['stop', CONTAINER_NAME], { stdio: 'ignore' })
+    }
+    process.on('SIGINT', stop)
+    process.on('SIGTERM', stop)
+    proc.on('close', (code) => resolvePromise(code ?? 1))
+    proc.on('error', (err) => {
+      console.error(`❌ ${err.message}`)
+      resolvePromise(1)
+    })
+  })
+}
+
+async function waitForHealth(port, timeoutMs) {
+  const deadline = Date.now() + timeoutMs
+  while (Date.now() < deadline) {
+    try {
+      const res = await globalThis.fetch(`http://127.0.0.1:${port}/health`)
+      if (res.status === 200) return true
+    } catch {
+      // Not listening yet
+    }
+    await new Promise(r => setTimeout(r, 1000))
   }
-
-  // Run container
-  await runCommand([
-    'docker', 'run', '-d',
-    '--name', 'agentbe-remote-backend',
-    '-p', '2222:22',
-    'agentbe/remote-backend:latest'
-  ])
+  return false
 }
 
-function runCommand(command) {
-  return new Promise((resolve, reject) => {
+function runCommand(command, { cwd, stream = false } = {}) {
+  return new Promise((resolvePromise, reject) => {
     const proc = spawn(command[0], command.slice(1), {
-      stdio: ['ignore', 'pipe', 'pipe']
+      cwd,
+      stdio: stream ? 'inherit' : ['ignore', 'pipe', 'pipe']
     })
 
     let stdout = ''
@@ -746,9 +851,9 @@ function runCommand(command) {
 
     proc.on('close', (code) => {
       if (code === 0) {
-        resolve(stdout)
+        resolvePromise(stdout)
       } else {
-        reject(new Error(`Command failed with exit code ${code}: ${stderr || stdout}`))
+        reject(new Error(`${command.join(' ')} exited with code ${code}${stderr || stdout ? `: ${stderr || stdout}` : ''}`))
       }
     })
 
@@ -769,8 +874,8 @@ USAGE:
 
 COMMANDS:
   daemon                 Start agentbe-daemon (MCP + SSH-WS server)
-  start-docker [--build] Start Docker container with agentbe-daemon
-  stop-docker            Stop Docker container
+  start-docker           Run agentbe-daemon in a local Docker container
+  stop-docker            Stop and remove that container
   version                Show version
   help                   Show this help message
 
@@ -813,15 +918,25 @@ DAEMON COMMAND:
     --ssh-authorized-keys <path>  Path to authorized_keys file
 
 DOCKER MANAGEMENT:
-  agent-backend start-docker [--build]
+  agent-backend start-docker [OPTIONS]
 
-  Starts Docker container with agentbe-daemon.
+  Runs the daemon image as a container named agentbe-daemon, replacing any
+  existing one. Connect with RemoteFilesystemBackend (host: localhost).
+
   Options:
-    --build                Force rebuild the Docker image
+    --port <port>          Host and container port (default: 3001)
+    --bind <addr>          Host address to publish on (default: 127.0.0.1)
+    --auth-token <tok>     Auth token (default: $AUTH_TOKEN, else none)
+    --workspace <path>     Host directory mounted at /var/workspace
+    --env-file <path>      Env file passed to the container
+    --image <ref>          Image to run (default: ghcr.io/aspects-ai/agentbe-daemon:latest)
+    --build                Build the image from source first (source checkout only)
+    --dev                  Hot-reload from mounted source (source checkout only)
+    --foreground           Stay attached instead of detaching
 
   agent-backend stop-docker
 
-  Stops Docker container.
+  Stops and removes the agentbe-daemon container.
 
 EXAMPLES:
   # Default mode: MCP + SSH-WS on single port (works on any platform)
@@ -845,8 +960,8 @@ EXAMPLES:
   # Custom port
   agent-backend daemon --rootDir /tmp/agentbe-workspace --port 8080
 
-  # Start Docker container
-  agent-backend start-docker --build
+  # Run the daemon in Docker with a persistent workspace
+  agent-backend start-docker --workspace ./workspace --auth-token secret123
 
 TRANSPORTS:
   SSH-WS (default, recommended):

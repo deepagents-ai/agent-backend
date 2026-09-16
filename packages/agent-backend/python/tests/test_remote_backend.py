@@ -6,6 +6,7 @@ Marked with @pytest.mark.integration.
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -188,3 +189,72 @@ class TestRemoteBackendFileOps:
         cmd = transport.run.call_args[0][0]
         assert cmd.startswith("cd /var/workspace && HOME=/var/workspace ")
         assert "echo hello" in cmd
+
+
+class TestRemoteBackendAuthRejection:
+    """Daemon closing the SSH-WS socket with 4001 surfaces as AUTH_FAILED."""
+
+    async def test_transport_raises_auth_error_on_4001(self):
+        import websockets
+
+        from agent_backend.backends.transports.websocket_ssh import (
+            WebSocketAuthError,
+            WebSocketSSHTransport,
+        )
+
+        async def reject(ws):
+            await ws.close(4001, "Unauthorized")
+
+        async with websockets.serve(reject, "127.0.0.1", 0) as server:
+            port = server.sockets[0].getsockname()[1]
+            transport = WebSocketSSHTransport("127.0.0.1", port, auth_token="wrong")
+            with pytest.raises(WebSocketAuthError, match="rejected the auth token"):
+                await transport.connect()
+            await transport.close()
+
+    async def test_transport_keeps_other_errors(self):
+        import websockets
+
+        from agent_backend.backends.transports.websocket_ssh import (
+            WebSocketAuthError,
+            WebSocketSSHTransport,
+        )
+
+        async def drop(ws):
+            await ws.close(1011, "boom")
+
+        async with websockets.serve(drop, "127.0.0.1", 0) as server:
+            port = server.sockets[0].getsockname()[1]
+            transport = WebSocketSSHTransport("127.0.0.1", port)
+            with pytest.raises(Exception) as exc_info:
+                await transport.connect()
+            assert not isinstance(exc_info.value, WebSocketAuthError)
+            await transport.close()
+
+    async def test_backend_raises_auth_failed_without_reconnecting(self):
+        from unittest.mock import patch
+
+        from agent_backend.backends.transports.websocket_ssh import WebSocketAuthError
+        from agent_backend.types import BackendError, ErrorCode
+
+        backend = RemoteFilesystemBackend(
+            RemoteFilesystemBackendConfig(root_dir="/workspace", host="localhost", auth_token="wrong")
+        )
+        statuses = []
+        backend.on_status_change(lambda e: statuses.append(e.to_status))
+
+        with patch(
+            "agent_backend.backends.remote.WebSocketSSHTransport.connect",
+            side_effect=WebSocketAuthError(),
+        ) as connect:
+            with pytest.raises(BackendError) as exc_info:
+                await backend.readdir(".")
+            assert exc_info.value.code == ErrorCode.AUTH_FAILED
+            assert "rejected the auth token" in str(exc_info.value)
+
+            await asyncio.sleep(0.05)
+            assert connect.call_count == 1
+            assert ConnectionStatus.RECONNECTING not in statuses
+            assert backend.status == ConnectionStatus.DISCONNECTED
+
+        await backend.destroy()
