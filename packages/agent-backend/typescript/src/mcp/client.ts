@@ -127,14 +127,16 @@ export async function createAgentBeMCPClient(
         `MCP connection failed: Server rejected request. ` +
         `This usually means missing or invalid headers. ` +
         `Ensure rootDir ('${options.rootDir}'), scopePath ('${options.scopePath}') are correctly configured. ` +
-        `Original error: ${message}`
+        `Original error: ${message}`,
+        { cause: error }
       )
     }
 
     if (message.includes('401') || message.includes('Unauthorized')) {
       throw new Error(
         `MCP connection failed: Authentication rejected. ` +
-        `Check that your authToken is correct. Original error: ${message}`
+        `Check that your authToken is correct. Original error: ${message}`,
+        { cause: error }
       )
     }
 
@@ -142,13 +144,15 @@ export async function createAgentBeMCPClient(
       throw new Error(
         `MCP connection failed: Unable to reach server at ${options.url}. ` +
         `Check that the server is running and the URL is correct. ` +
-        `Original error: ${message}`
+        `Original error: ${message}`,
+        { cause: error }
       )
     }
 
     // Re-throw with connection context
     throw new Error(
-      `MCP connection failed to ${options.url}: ${message}`
+      `MCP connection failed to ${options.url}: ${message}`,
+      { cause: error }
     )
   }
 }

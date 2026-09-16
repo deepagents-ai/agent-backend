@@ -150,7 +150,7 @@ export function createSFTPHandler(sftp: SFTPWrapper, rootDir: string): void {
    * Convert SFTP flags to Node.js open flags
    */
   function sftpFlagsToNodeFlags(sftpFlags: number): number {
-    let flags = 0
+    let flags: number
 
     const hasRead = (sftpFlags & SFTP_OPEN_FLAGS.READ) !== 0
     const hasWrite = (sftpFlags & SFTP_OPEN_FLAGS.WRITE) !== 0

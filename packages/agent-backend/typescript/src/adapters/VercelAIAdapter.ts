@@ -107,7 +107,8 @@ export class VercelAIAdapter {
       if (message.includes('ECONNREFUSED')) {
         throw new Error(
           `MCP connection refused. The MCP server is not running or not reachable. ` +
-          `Original error: ${message}`
+          `Original error: ${message}`,
+          { cause: error }
         )
       }
 
