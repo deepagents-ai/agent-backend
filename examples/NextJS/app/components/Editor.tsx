@@ -160,7 +160,7 @@ export default function Editor({ sessionId, selectedFile }: EditorProps) {
     <div className="w-[480px] border-l border-border bg-background-surface flex flex-col">
       <div className="border-b border-border p-3 flex items-center justify-between">
         <div className="flex items-center gap-2 flex-1 min-w-0">
-          <FileCode className="w-4 h-4 text-foreground-muted flex-shrink-0" />
+          <FileCode className="w-4 h-4 text-foreground-muted shrink-0" />
           {selectedFile ? (
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium text-foreground truncate">{selectedFile}</p>
@@ -178,7 +178,7 @@ export default function Editor({ sessionId, selectedFile }: EditorProps) {
           {language === 'json' && selectedFile && (
             <button
               onClick={formatDocument}
-              className="px-3 py-1.5 text-xs bg-background-elevated hover:bg-border rounded text-foreground-secondary transition-colors"
+              className="px-3 py-1.5 text-xs bg-background-elevated hover:bg-border rounded-sm text-foreground-secondary transition-colors"
             >
               Format
             </button>
@@ -186,7 +186,7 @@ export default function Editor({ sessionId, selectedFile }: EditorProps) {
           <button
             onClick={handleSave}
             disabled={!isDirty || saveState === 'saving'}
-            className="px-3 py-1.5 bg-primary hover:bg-primary/90 disabled:bg-background-elevated disabled:text-foreground-muted rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
+            className="px-3 py-1.5 bg-primary hover:bg-primary/90 disabled:bg-background-elevated disabled:text-foreground-muted rounded-sm text-white text-sm font-medium transition-colors flex items-center gap-2"
           >
             {saveState === 'saving' ? (
               <>
@@ -233,7 +233,7 @@ export default function Editor({ sessionId, selectedFile }: EditorProps) {
               <p className="text-xs text-foreground-secondary mb-4">{error}</p>
               <button
                 onClick={loadFile}
-                className="px-4 py-2 bg-primary hover:bg-primary/90 rounded text-white text-sm transition-colors"
+                className="px-4 py-2 bg-primary hover:bg-primary/90 rounded-sm text-white text-sm transition-colors"
               >
                 Try Again
               </button>
@@ -243,7 +243,7 @@ export default function Editor({ sessionId, selectedFile }: EditorProps) {
           <textarea
             value={content}
             onChange={(e) => handleEditorChange(e.target.value)}
-            className="w-full h-full p-4 bg-background text-foreground font-mono text-sm resize-none focus:outline-none"
+            className="w-full h-full p-4 bg-background text-foreground font-mono text-sm resize-none focus:outline-hidden"
             spellCheck={false}
           />
         ) : (

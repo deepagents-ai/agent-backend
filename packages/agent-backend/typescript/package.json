@@ -63,7 +63,7 @@
     "node-gyp": "^13.0.2"
   },
   "peerDependencies": {
-    "@ai-sdk/mcp": "^1.0.0"
+    "@ai-sdk/mcp": "^1.0.0 || ^2.0.0"
   },
   "peerDependenciesMeta": {
     "@ai-sdk/mcp": {
@@ -81,7 +81,7 @@
     "@typescript-eslint/parser": "^8.70.0",
     "eslint": "^10.10.0",
     "prettier": "^3.9.6",
-    "typescript": "^7.0.2",
+    "typescript": "~6.0.3",
     "vite": "^8.3.0",
     "vite-plugin-dts": "^4.3.0",
     "vitest": "^3.2.6"

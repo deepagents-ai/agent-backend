@@ -9,6 +9,7 @@ jobs:
     outputs:
       should_publish_npm: ${{ steps.check.outputs.should_publish_npm }}
       should_publish_pypi: ${{ steps.check.outputs.should_publish_pypi }}
+      should_publish_opensdd: ${{ steps.check.outputs.should_publish_opensdd }}
       version: ${{ steps.check.outputs.version }}
     steps:
       - uses: actions/checkout@v7
@@ -33,6 +34,17 @@ jobs:
           else
             echo "v$VERSION not yet on PyPI — will publish"
             echo "should_publish_pypi=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # `opensdd publish` opens a PR from agent-backend/<version>; treat an existing
+          # branch (PR pending) or registry entry (PR merged) as already published.
+          if git ls-remote --exit-code --heads https://github.com/deepagents-ai/opensdd "agent-backend/$VERSION" >/dev/null 2>&1 \
+            || curl -sf "https://raw.githubusercontent.com/deepagents-ai/opensdd/main/registry/agent-backend/$VERSION/manifest.json" >/dev/null 2>&1; then
+            echo "v$VERSION already published to OpenSDD registry — skipping"
+            echo "should_publish_opensdd=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "v$VERSION not yet in OpenSDD registry — will publish"
+            echo "should_publish_opensdd=true" >> "$GITHUB_OUTPUT"
           fi
 
   publish-typescript:
@@ -99,6 +111,7 @@ jobs:
 
   publish-opensdd:
     needs: check-version
+    if: needs.check-version.outputs.should_publish_opensdd == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -126,7 +139,9 @@ jobs:
 
   tag-release:
     needs: [check-version, publish-typescript, publish-python, publish-opensdd]
-    if: always() && (needs.publish-typescript.result == 'success' || needs.publish-python.result == 'success')
+    # Skipped publish jobs mean that version was already published, so only a failed or
+    # cancelled job blocks the tag. Re-running after a partial failure completes the release.
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     runs-on: ubuntu-latest
     permissions:
       contents: write

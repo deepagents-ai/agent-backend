@@ -128,9 +128,9 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
             onClick={() => handleFileClick(item.path, item.type)}
           >
             {item.type === 'directory' ? (
-              <Folder className="w-4 h-4 text-warning flex-shrink-0" />
+              <Folder className="w-4 h-4 text-warning shrink-0" />
             ) : (
-              <File className="w-4 h-4 text-primary flex-shrink-0" />
+              <File className="w-4 h-4 text-primary shrink-0" />
             )}
             <span className="text-sm text-foreground-secondary flex-1 truncate">{item.name}</span>
             {item.type === 'file' && (
@@ -139,7 +139,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
                   e.stopPropagation()
                   handleDownload(item.path)
                 }}
-                className="opacity-0 hover:opacity-100 group-hover:opacity-100 p-1 hover:bg-background rounded"
+                className="opacity-0 hover:opacity-100 group-hover:opacity-100 p-1 hover:bg-background rounded-sm"
               >
                 <Download className="w-3 h-3 text-foreground-muted" />
               </button>
@@ -164,7 +164,7 @@ const FileExplorer = forwardRef<FileExplorerRef, FileExplorerProps>(
               placeholder="Search files..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full pl-9 pr-3 py-2 bg-background-elevated border border-border rounded-lg text-sm text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-primary"
+              className="w-full pl-9 pr-3 py-2 bg-background-elevated border border-border rounded-lg text-sm text-foreground placeholder:text-foreground-muted focus:outline-hidden focus:border-primary"
             />
           </div>
           <div className="flex gap-2">
