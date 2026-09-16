@@ -52,9 +52,11 @@ Agent Backend supports:
 | **Memory** | Fast in-memory key/value storage with filesystem semantics |
 | **Local Filesystem** | Execute code, run commands, manage files |
 | **Remote Filesystem** | Filesystem on a remote host or Docker container |
-| **K8s** *(coming soon)* | Fully managed, multi-tenant filesystem backend in a VPC |
+| **Managed K8s service** *(coming soon)* | Fully managed, multi-tenant filesystem backend in a VPC |
 
-Agent Backends run in a sandboxed environment to ensure isolation and security, with options including Docker container and remote VM isolation.
+Run Agent Backend inside Bubblewrap, a Docker container, a remote VM, or a
+Kubernetes pod when commands need an isolation boundary. Local `software` mode
+provides validation only and is not a security sandbox.
 
 ```mermaid
 %%{init: {'theme':'base', 'themeVariables': {
@@ -143,19 +145,36 @@ await backend.write("hello.txt", "Hello World!")
 
 </details>
 
+### Choose a setup
+
+| Setup | Isolation boundary | Start here |
+|---|---|---|
+| Local backend (`software`) | None; validation only, **not a security sandbox** | [Local in-process backend](docs/deployment-setups.md#programmatic-software-validation) |
+| Local backend (`bwrap`, Linux) | Bubblewrap namespaces; host networking is shared | [Bubblewrap isolation](docs/deployment-setups.md#bubblewrap-isolation) |
+| Local Docker daemon | Docker container | [Local Docker daemon](docs/deployment-setups.md#local-docker-daemon) |
+| Remote machine daemon | Dedicated VM | [Remote machine](docs/deployment-setups.md#remote-machine) |
+| Kubernetes daemon | Kubernetes pod | [Kubernetes](docs/deployment-setups.md#kubernetes) |
+
+These options deploy the core Agent Backend library or daemon. For Agent
+Document Room's container-or-pod-per-session model, see
+[Room deployment](docs/room-deployment.md).
+
 On a remote VM, or in a Docker container on your own machine, run the agentbe-daemon:
 
 ```bash
 npm install -g agent-backend
+export AGENTBE_TOKEN="replace-with-a-long-random-token"
 
-# Start full daemon (Linux only, requires root)
-agent-backend daemon --rootDir /var/workspace --auth-token $SECRET
+# Start the daemon directly
+agent-backend daemon --rootDir /var/workspace --auth-token "$AGENTBE_TOKEN"
 
 # Or run it in Docker (listens on 127.0.0.1:3001; add --bind 0.0.0.0 on a VM)
-agent-backend start-docker --auth-token $SECRET
+agent-backend start-docker --workspace ./workspace --auth-token "$AGENTBE_TOKEN"
 ```
 
-You now have full access to the daemon at port 3001, sandboxed to `rootDir`. For a container on the same machine, connect with `host: 'localhost'`.
+The daemon listens on port 3001. `rootDir` limits filesystem API paths but is not
+itself a shell-command security boundary. For a container on the same machine,
+connect with `host: 'localhost'`.
 
 <details open>
 <summary>TypeScript</summary>
@@ -167,7 +186,7 @@ function getBackend() {
       rootDir: '/tmp/agentbe-workspace'
     });
   } else {
-    new RemoteFilesystemBackend({
+    return new RemoteFilesystemBackend({
       rootDir: '/var/workspace',
       host: 'host1.yoursite.com',
       authToken: SECRET
@@ -691,7 +710,10 @@ See [room/README.md](room/README.md) for the tool surface, [docs/room-architectu
 
 For remote execution, the agentbe-daemon runs on a remote host and provides MCP and SSH access. It supports local-only mode (stdio, for development), full daemon mode (HTTP + SSH, for production), and Docker deployment.
 
-See [docs/agentbe-daemon.md](./docs/agentbe-daemon.md) for setup, configuration, scoping, and deployment options.
+Start with the [setup guide](docs/deployment-setups.md) to choose between local,
+Docker, remote-machine, and Kubernetes topologies. See
+[docs/agentbe-daemon.md](./docs/agentbe-daemon.md) for daemon configuration,
+scoping, and transport details.
 
 ---
 
@@ -700,6 +722,7 @@ See [docs/agentbe-daemon.md](./docs/agentbe-daemon.md) for setup, configuration,
 **Agent Backend**
 
 - [Architecture](docs/architecture.md)
+- [Deployment Setups](docs/deployment-setups.md)
 - [Agent Backend Daemon](docs/agentbe-daemon.md)
 - [AI SDK Integration](docs/ai-sdk.md)
 - [Connection Pooling](docs/connection-pooling.md)
