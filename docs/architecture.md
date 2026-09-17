@@ -25,6 +25,7 @@ Agent Backend provides secure, isolated filesystem access and command execution 
 - MCP HTTP client for tool calls to remote daemon
 - Two-machine deployment (client on one host, filesystem on another)
 - Authentication via SSH keys or passwords + MCP bearer tokens
+- Optional TLS (`secure`) and extra request headers (`headers`) for daemons behind a reverse proxy
 
 ### MemoryBackend
 - In-memory key/value storage (no filesystem)

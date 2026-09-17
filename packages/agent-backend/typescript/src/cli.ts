@@ -34,7 +34,7 @@ import {
   resolveImage
 } from './cli/docker-config.js'
 import { LocalFilesystemBackend } from './index.js'
-import { AgentBackendMCPServer, createWebSocketSSHServer } from './server/index.js'
+import { AgentBackendMCPServer, createWebSocketSSHServer, secretsEqual, stripDaemonSecretsFromEnv } from './server/index.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -91,6 +91,9 @@ async function main() {
 async function handleDaemon(args) {
   // Parse daemon-specific args
   const config = parseDaemonArgs(args)
+
+  // Commands run on behalf of clients must not be able to read the daemon's credential
+  stripDaemonSecretsFromEnv()
 
   // Local-only mode (stdio MCP, no SSH, no HTTP)
   if (config.localOnly) {
@@ -484,7 +487,7 @@ async function startDaemonHttpServerWithSSH(config) {
       const authHeader = req.headers.authorization
       const expectedAuth = `Bearer ${config.authToken}`
 
-      if (!authHeader || authHeader !== expectedAuth) {
+      if (!secretsEqual(authHeader, expectedAuth)) {
         res.status(401).json({
           error: 'Unauthorized',
           message: 'Invalid or missing authentication token'
@@ -929,7 +932,7 @@ DOCKER MANAGEMENT:
     --auth-token <tok>     Auth token (default: $AUTH_TOKEN, else none)
     --workspace <path>     Host directory mounted at /var/workspace
     --env-file <path>      Env file passed to the container
-    --image <ref>          Image to run (default: ghcr.io/aspects-ai/agentbe-daemon:latest)
+    --image <ref>          Image to run (default: ghcr.io/deepagents-ai/agentbe-daemon:latest)
     --build                Build the image from source first (source checkout only)
     --dev                  Hot-reload from mounted source (source checkout only)
     --foreground           Stay attached instead of detaching

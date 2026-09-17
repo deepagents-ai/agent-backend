@@ -28,7 +28,7 @@ sleep 5
 
 # Pull the AgentBackend remote backend image
 echo "[3/5] Pulling AgentBackend remote backend image..."
-docker pull ghcr.io/aspects-ai/agentbe-daemon:latest
+docker pull ghcr.io/deepagents-ai/agentbe-daemon:latest
 
 # Create workspace directory
 mkdir -p /var/workspace
@@ -47,7 +47,7 @@ docker run -d \
   -e SSH_PORT="${SSH_PORT}" \
   -e SSH_USERS="${SSH_USERS}" \
   -e WORKSPACE_ROOT="${WORKSPACE_ROOT}" \
-  ghcr.io/aspects-ai/agentbe-daemon:latest
+  ghcr.io/deepagents-ai/agentbe-daemon:latest
 
 # Wait for container to start
 sleep 5

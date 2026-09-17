@@ -197,6 +197,15 @@ pnpm test -t "safety"        # Filter by pattern
 pnpm test --coverage         # With coverage report
 ```
 
+Integration tests run against real infrastructure and are not part of `pnpm test`:
+
+```bash
+pnpm run test:integration              # Integration suite
+pnpm run test:integration:tls-proxy    # RemoteFilesystemBackend through a TLS proxy (needs Docker)
+```
+
+The TLS proxy runner starts a local daemon behind a Caddy container that terminates TLS and routes on a header, then runs `tests/integration/tls-proxy.test.ts` against it (`secure`, `headers`, and header-based token auth).
+
 ### Gotchas
 
 - Scoped backends read `connected` from the parent dynamically via a getter, not a copied property.

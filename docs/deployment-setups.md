@@ -12,6 +12,7 @@ across an isolation boundary and use `RemoteFilesystemBackend`.
 - [Local Docker daemon](#local-docker-daemon)
 - [Remote machine](#remote-machine)
 - [Kubernetes](#kubernetes)
+- [Fly.io Machines](fly-machines.md)
 - [Core daemon vs. Agent Document Room](#core-daemon-vs-agent-document-room)
 
 ## Choose a setup
@@ -23,10 +24,14 @@ across an isolation boundary and use `RemoteFilesystemBackend`.
 | Local Docker | `RemoteFilesystemBackend` | One Docker container around the daemon | Reproducible local isolation |
 | Remote machine | `RemoteFilesystemBackend` | A dedicated VM | Workspaces on another machine |
 | Kubernetes | `RemoteFilesystemBackend` | One pod around the daemon | A daemon and workspace inside a cluster |
+| Fly.io Machines | `RemoteFilesystemBackend` | One Firecracker microVM per daemon | One daemon per user or tenant, reached through Fly's TLS proxy |
 
 `rootDir` limits filesystem API paths, but it does not create a security boundary
 for shell commands. Choose Bubblewrap, Docker, a dedicated VM, or a Kubernetes pod
 when commands are not trusted.
+
+For one daemon per Fly Machine, reached through Fly's public proxy with a
+routing header, see [Fly.io Machines](fly-machines.md).
 
 ## Local in-process backend
 
@@ -263,6 +268,23 @@ dedicated account under a process supervisor for a long-lived deployment. The
 [daemon deployment reference](../agentbe-daemon/README.md#cloud-deployment) also
 shows a Docker-based VM deployment.
 
+To reach the daemon across the internet instead, put a TLS-terminating reverse
+proxy in front of it that forwards `/mcp` and the `/ssh` WebSocket to port
+`3001`. Connect to the proxy on port `443`, which selects `https` and `wss`
+(set `secure` explicitly for TLS on another port). Add `headers` when the proxy
+routes on a request header; they are sent on every MCP request and on the
+WebSocket upgrade:
+
+```javascript
+const backend = new RemoteFilesystemBackend({
+  rootDir: '/var/workspace',
+  host: 'agentbe.example.com',
+  port: 443,
+  authToken: process.env.AGENTBE_TOKEN,
+  headers: { 'x-route-instance': process.env.AGENTBE_INSTANCE_ID },
+})
+```
+
 ## Kubernetes
 
 Deploy one core daemon and one workspace volume when an application in the
@@ -314,7 +336,7 @@ that can reach a cluster `Service`.
            kubernetes.io/arch: amd64
          containers:
            - name: daemon
-             image: ghcr.io/aspects-ai/agentbe-daemon:latest
+             image: ghcr.io/deepagents-ai/agentbe-daemon:latest
              ports:
                - name: agentbe
                  containerPort: 3001

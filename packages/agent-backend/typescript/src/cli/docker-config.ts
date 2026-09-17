@@ -3,7 +3,7 @@
  * Pure parsing and argument building, kept separate from cli.ts for testability
  */
 
-export const DEFAULT_DAEMON_IMAGE = 'ghcr.io/aspects-ai/agentbe-daemon:latest'
+export const DEFAULT_DAEMON_IMAGE = 'ghcr.io/deepagents-ai/agentbe-daemon:latest'
 export const LOCAL_DAEMON_IMAGE = 'agentbe-daemon:latest'
 export const CONTAINER_NAME = 'agentbe-daemon'
 export const CONTAINER_WORKSPACE = '/var/workspace'

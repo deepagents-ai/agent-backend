@@ -71,13 +71,14 @@ class VercelAIAdapter:
 
         # For HTTP transports, use streamable HTTP
         if hasattr(transport, "url"):
-            headers: dict[str, str] = {}
-            if transport.auth_token:
-                headers["Authorization"] = f"Bearer {transport.auth_token}"
-            if transport.root_dir:
-                headers["X-Root-Dir"] = transport.root_dir
-            if transport.scope_path:
-                headers["X-Scope-Path"] = transport.scope_path
+            from agent_backend.mcp_integration.client import build_remote_mcp_headers
+
+            headers = build_remote_mcp_headers(
+                transport.auth_token,
+                transport.root_dir,
+                transport.scope_path,
+                getattr(transport, "headers", None),
+            )
 
             http_ctx = streamable_http_client(
                 f"{transport.url}/mcp",

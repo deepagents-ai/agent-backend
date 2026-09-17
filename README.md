@@ -154,6 +154,7 @@ await backend.write("hello.txt", "Hello World!")
 | Local Docker daemon | Docker container | [Local Docker daemon](docs/deployment-setups.md#local-docker-daemon) |
 | Remote machine daemon | Dedicated VM | [Remote machine](docs/deployment-setups.md#remote-machine) |
 | Kubernetes daemon | Kubernetes pod | [Kubernetes](docs/deployment-setups.md#kubernetes) |
+| Fly.io Machines daemon | Firecracker microVM per machine | [Fly.io Machines](docs/fly-machines.md) |
 
 These options deploy the core Agent Backend library or daemon. For Agent
 Document Room's container-or-pod-per-session model, see
@@ -341,6 +342,20 @@ await backend.exec("python script.py")
 ```
 
 </details>
+
+Behind a TLS-terminating reverse proxy, connect on port 443 (or set `secure: true` / `secure=True`) to use `https`/`wss`. `headers` is sent on every MCP request and the SSH-over-WebSocket upgrade, for proxies that route on a header:
+
+```typescript
+const backend = new RemoteFilesystemBackend({
+  rootDir: '/var/workspace',
+  host: 'agentbe.example.com',
+  port: 443,
+  authToken: 'secure-token',
+  headers: { 'x-route-instance': instanceId }
+})
+```
+
+`headers` cannot override `Authorization`, `X-Root-Dir`, or `X-Scope-Path`.
 
 ### MCP Integration
 
@@ -723,6 +738,7 @@ scoping, and transport details.
 
 - [Architecture](docs/architecture.md)
 - [Deployment Setups](docs/deployment-setups.md)
+- [Fly.io Machines](docs/fly-machines.md)
 - [Agent Backend Daemon](docs/agentbe-daemon.md)
 - [AI SDK Integration](docs/ai-sdk.md)
 - [Connection Pooling](docs/connection-pooling.md)

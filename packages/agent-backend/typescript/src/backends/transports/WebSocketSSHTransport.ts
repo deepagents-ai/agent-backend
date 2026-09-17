@@ -15,6 +15,7 @@ import type { ClientChannel, SFTPWrapper } from 'ssh2'
 import { Duplex } from 'stream'
 import WebSocket from 'ws'
 import { SSH2Client as SSHClient, type SSH2ClientType } from '../../utils/ssh2.js'
+import { daemonScheme, mergeDaemonHeaders } from './daemonEndpoint.js'
 
 export interface WebSocketSSHTransportConfig {
   /** Remote host */
@@ -23,8 +24,12 @@ export interface WebSocketSSHTransportConfig {
   port: number
   /** WebSocket path (default: /ssh) */
   path?: string
-  /** Bearer token for authentication */
+  /** Bearer token, sent as an Authorization header on the upgrade request */
   authToken?: string
+  /** Use wss:// (default: true when port is 443) */
+  secure?: boolean
+  /** Extra headers for the upgrade request. Cannot override Authorization. */
+  headers?: Record<string, string>
   /** Connection timeout in ms (default: 30000) */
   timeout?: number
   /** Keep-alive interval in ms (default: 30000) */
@@ -63,7 +68,8 @@ export class WebSocketSSHTransport extends EventEmitter {
   private sftpSession: SFTPWrapper | null = null
   private sftpSessionPromise: Promise<SFTPWrapper> | null = null
   private _connected = false
-  private readonly config: Required<Omit<WebSocketSSHTransportConfig, 'authToken'>> & { authToken?: string }
+  private readonly config: Required<Omit<WebSocketSSHTransportConfig, 'authToken' | 'secure' | 'headers'>> &
+    Pick<WebSocketSSHTransportConfig, 'authToken' | 'secure' | 'headers'>
 
   constructor(config: WebSocketSSHTransportConfig) {
     super()
@@ -86,13 +92,15 @@ export class WebSocketSSHTransport extends EventEmitter {
     if (this._connected) return
 
     return new Promise((resolve, reject) => {
-      const protocol = this.config.port === 443 ? 'wss' : 'ws'
-      let url = `${protocol}://${this.config.host}:${this.config.port}${this.config.path}`
+      const protocol = daemonScheme('ws', this.config.port, this.config.secure)
+      const url = `${protocol}://${this.config.host}:${this.config.port}${this.config.path}`
 
-      // Add auth token as query parameter
+      // Token goes in a header, never the URL: proxies and access logs record query strings
+      const ownHeaders: Record<string, string> = {}
       if (this.config.authToken) {
-        url += `?token=${encodeURIComponent(this.config.authToken)}`
+        ownHeaders['Authorization'] = `Bearer ${this.config.authToken}`
       }
+      const headers = mergeDaemonHeaders(this.config.headers, ownHeaders)
 
       let settled = false
       const fail = (err: Error) => {
@@ -108,7 +116,7 @@ export class WebSocketSSHTransport extends EventEmitter {
         fail(new Error(`Connection timeout after ${this.config.timeout}ms`))
       }, this.config.timeout)
 
-      const ws = new WebSocket(url)
+      const ws = new WebSocket(url, { headers })
       this.ws = ws
       const closeCode = new Promise<number>((res) => ws.once('close', (code) => res(code)))
 
@@ -141,7 +149,8 @@ export class WebSocketSSHTransport extends EventEmitter {
       })
 
       ws.on('error', (err) => {
-        fail(err)
+        // e.g. "Unexpected server response: 404" from a proxy; name the endpoint
+        fail(new Error(`WebSocket connection to ${url} failed: ${err.message}`, { cause: err }))
       })
 
       ws.on('close', (code, reason) => {

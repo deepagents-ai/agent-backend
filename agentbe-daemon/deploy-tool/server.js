@@ -45,14 +45,14 @@ app.get("/version-info", async (req, res) => {
   try {
     // Get anonymous bearer token for public package
     const tokenResponse = await fetch(
-      "https://ghcr.io/token?scope=repository:aspects-ai/agentbe-daemon:pull"
+      "https://ghcr.io/token?scope=repository:deepagents-ai/agentbe-daemon:pull"
     );
     const tokenData = await tokenResponse.json();
     const token = tokenData.token;
 
     // Fetch tags from GHCR
     const response = await fetch(
-      "https://ghcr.io/v2/aspects-ai/agentbe-daemon/tags/list",
+      "https://ghcr.io/v2/deepagents-ai/agentbe-daemon/tags/list",
       { headers: { 'Authorization': `Bearer ${token}` } }
     );
 

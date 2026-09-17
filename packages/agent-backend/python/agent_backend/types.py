@@ -194,6 +194,13 @@ class RemoteFilesystemBackendConfig:
     port: int | None = None
     mcp_port: int = 3001
     mcp_server_host_override: str | None = None
+    secure: bool | None = None
+    """Use TLS for both daemon channels. Default: TLS when the port is 443."""
+    headers: dict[str, str] | None = None
+    """Extra headers on every MCP request and the SSH-WS upgrade.
+
+    Cannot override Authorization, X-Root-Dir or X-Scope-Path.
+    """
     operation_timeout_ms: int | None = None
     keepalive_interval_ms: int = 30000
     keepalive_count_max: int = 3

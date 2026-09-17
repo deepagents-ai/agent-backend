@@ -201,7 +201,8 @@ agent-backend daemon --rootDir /var/workspace --auth-token dev-secret-123
 
 **MCP Authentication (Required):**
 - Bearer token via `--auth-token`
-- Sent as `Authorization: Bearer <token>` header
+- Sent as `Authorization: Bearer <token>` header on MCP requests and on the SSH-over-WebSocket upgrade request
+- Clients never put the token in the URL; the daemon still accepts `/ssh?token=<token>` for older clients
 - Tokens should be cryptographically random (32+ bytes)
 
 **Example:**
@@ -220,7 +221,9 @@ backend = RemoteFilesystemBackend(
   sshPort:      22,
   port:         3001,
   sshAuth:      {type: "key", credentials: {username: "agent", privateKey: readFile("/path/to/key")}},
-  authToken:    env("AUTH_TOKEN")    // Bearer token
+  authToken:    env("AUTH_TOKEN"),   // Bearer token
+  secure:       false,               // true behind an HTTPS proxy; unset means TLS only on port 443
+  headers:      {"x-route": "a"}     // optional; cannot override Authorization, X-Root-Dir, X-Scope-Path
 )
 ```
 
@@ -233,7 +236,8 @@ backend = RemoteFilesystemBackend(
 
 **TLS/SSL:**
 - SSH provides encryption by default
-- MCP over HTTP should use reverse proxy with HTTPS in production
+- MCP and SSH-over-WebSocket run over plain HTTP/WS; use a reverse proxy with HTTPS in production
+- Connect clients to the proxy on port 443 or with `secure: true` so they use `https`/`wss`
 
 **Example nginx reverse proxy:**
 ```nginx
@@ -246,6 +250,14 @@ server {
 
   location /mcp {
     proxy_pass http://localhost:3001/mcp;
+    proxy_set_header Authorization $http_authorization;
+  }
+
+  location /ssh {
+    proxy_pass http://localhost:3001/ssh;
+    proxy_http_version 1.1;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
     proxy_set_header Authorization $http_authorization;
   }
 }

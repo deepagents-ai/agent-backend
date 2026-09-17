@@ -21,6 +21,7 @@
     "test": "vitest",
     "test:unit": "vitest run",
     "test:integration": "vitest run --config vitest.integration.config.ts",
+    "test:integration:tls-proxy": "tests/integration/tls-proxy/run.sh",
     "test:all": "npm run test:unit && npm run test:integration",
     "test:run": "vitest run",
     "lint": "eslint src",

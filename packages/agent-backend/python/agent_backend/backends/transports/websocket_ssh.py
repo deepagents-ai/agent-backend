@@ -13,6 +13,8 @@ from typing import Any
 import asyncssh
 import websockets
 
+from agent_backend.backends.transports.daemon_endpoint import daemon_scheme, merge_daemon_headers
+
 logger = logging.getLogger(__name__)
 
 WS_CLOSE_UNAUTHORIZED = 4001
@@ -143,8 +145,12 @@ class WebSocketSSHTransport:
         auth_token: str | None = None,
         keepalive_interval: float = 30.0,
         keepalive_count_max: int = 3,
+        secure: bool | None = None,
+        headers: dict[str, str] | None = None,
     ) -> None:
         self._host = host
+        self._secure = secure
+        self._headers = headers
         self._port = port
         self._auth_token = auth_token
         self._keepalive_interval = keepalive_interval
@@ -160,10 +166,11 @@ class WebSocketSSHTransport:
 
     async def connect(self) -> None:
         """Establish WebSocket connection and SSH session over it."""
-        protocol = "ws"
-        headers = {}
+        protocol = daemon_scheme("ws", self._port, self._secure)
+        own: dict[str, str] = {}
         if self._auth_token:
-            headers["Authorization"] = f"Bearer {self._auth_token}"
+            own["Authorization"] = f"Bearer {self._auth_token}"
+        headers = merge_daemon_headers(self._headers, own)
 
         ws_url = f"{protocol}://{self._host}:{self._port}/ssh"
         self._ws = await websockets.connect(ws_url, additional_headers=headers)

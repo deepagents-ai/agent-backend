@@ -14,3 +14,4 @@ export { registerFilesystemTools, registerExecTool, DEFAULT_EXCLUDE_PATTERNS } f
 export { createWebSocketSSHServer } from './WebSocketSSHServer.js'
 export type { WebSocketSSHServerOptions, WebSocketSSHServerInstance } from './WebSocketSSHServer.js'
 export { createSFTPHandler } from './SFTPHandler.js'
+export { secretsEqual, stripDaemonSecretsFromEnv } from './auth.js'

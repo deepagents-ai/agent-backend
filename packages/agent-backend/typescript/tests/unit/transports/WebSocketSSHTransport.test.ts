@@ -118,7 +118,7 @@ describe('WebSocketSSHTransport', () => {
       transport.connect().catch(() => {})
 
       // Should use default /ssh path
-      expect(WebSocket).toHaveBeenCalledWith(expect.stringContaining('/ssh'))
+      expect(WebSocket).toHaveBeenCalledWith(expect.stringContaining('/ssh'), expect.anything())
     })
   })
 
@@ -140,7 +140,8 @@ describe('WebSocketSSHTransport', () => {
 
       expect(transport.connected).toBe(true)
       expect(WebSocket).toHaveBeenCalledWith(
-        expect.stringContaining('ws://example.com:3001/ssh?token=test-token')
+        'ws://example.com:3001/ssh',
+        { headers: { Authorization: 'Bearer test-token' } }
       )
       expect(mockSsh.connect).toHaveBeenCalled()
     })
@@ -172,7 +173,9 @@ describe('WebSocketSSHTransport', () => {
         port: 3001
       })
 
-      await expect(transport.connect()).rejects.toThrow('Connection refused')
+      await expect(transport.connect()).rejects.toThrow(
+        'WebSocket connection to ws://example.com:3001/ssh failed: Connection refused'
+      )
       expect(transport.connected).toBe(false)
     })
 
@@ -205,7 +208,53 @@ describe('WebSocketSSHTransport', () => {
 
       await transport.connect()
 
-      expect(WebSocket).toHaveBeenCalledWith(expect.stringContaining('wss://'))
+      expect(WebSocket).toHaveBeenCalledWith(expect.stringContaining('wss://'), expect.anything())
+    })
+  })
+
+  describe('TLS and headers', () => {
+    function connectWith(config: Partial<ConstructorParameters<typeof WebSocketSSHTransport>[0]>) {
+      vi.mocked(WebSocket).mockImplementation(function () { return createMockWebSocket() as any })
+      vi.mocked(SSHClient).mockImplementation(function () { return createMockSSHClient() as any })
+      const transport = new WebSocketSSHTransport({ host: 'example.com', port: 3001, ...config })
+      return transport.connect().then(() => vi.mocked(WebSocket).mock.calls[0] as unknown as [string, { headers: Record<string, string> }])
+    }
+
+    it.each([
+      [true, 3001, 'wss://example.com:3001/ssh'],
+      [true, 443, 'wss://example.com:443/ssh'],
+      [false, 3001, 'ws://example.com:3001/ssh'],
+      [false, 443, 'ws://example.com:443/ssh'],
+      [undefined, 3001, 'ws://example.com:3001/ssh'],
+      [undefined, 443, 'wss://example.com:443/ssh'],
+    ])('secure=%s port=%s connects to %s', async (secure, port, expected) => {
+      const [url] = await connectWith({ secure, port })
+      expect(url).toBe(expected)
+    })
+
+    it('never puts the token in the URL', async () => {
+      const [url, opts] = await connectWith({ authToken: 's3cret' })
+      expect(url).not.toContain('token')
+      expect(url).not.toContain('s3cret')
+      expect(opts.headers.Authorization).toBe('Bearer s3cret')
+    })
+
+    it('sends extra headers on the upgrade request', async () => {
+      const [, opts] = await connectWith({ authToken: 'tok', headers: { 'fly-force-instance-id': 'm1' } })
+      expect(opts.headers).toEqual({ 'fly-force-instance-id': 'm1', Authorization: 'Bearer tok' })
+    })
+
+    it('does not let extra headers override Authorization', async () => {
+      const [, opts] = await connectWith({
+        authToken: 'tok',
+        headers: { authorization: 'Bearer evil', AUTHORIZATION: 'x' },
+      })
+      expect(opts.headers).toEqual({ Authorization: 'Bearer tok' })
+    })
+
+    it('does not send a caller Authorization header even without a token', async () => {
+      const [, opts] = await connectWith({ headers: { Authorization: 'Bearer evil', 'x-route': 'a' } })
+      expect(opts.headers).toEqual({ 'x-route': 'a' })
     })
   })
 

@@ -216,7 +216,7 @@ agent-backend daemon --rootDir /var/workspace \
 
 ### Docker
 
-`agent-backend start-docker` is the way to run the daemon container locally. It runs `ghcr.io/aspects-ai/agentbe-daemon:latest` as a container named `agentbe-daemon`, replacing any existing one, waits for `/health`, and prints the `RemoteFilesystemBackend` connection settings.
+`agent-backend start-docker` is the way to run the daemon container locally. It runs `ghcr.io/deepagents-ai/agentbe-daemon:latest` as a container named `agentbe-daemon`, replacing any existing one, waits for `/health`, and prints the `RemoteFilesystemBackend` connection settings.
 
 ```bash
 # Start on 127.0.0.1:3001 with a persistent workspace
@@ -243,7 +243,8 @@ For detailed security documentation, see [docs/security.md](security.md). For im
 
 Quick summary:
 - **Path validation**: All operations are confined to `rootDir`. `--scopePath` cannot contain `..`.
-- **Authentication**: Stdio mode needs none; HTTP mode uses `--auth-token` for bearer token auth; SSH uses password or public key auth.
+- **Authentication**: Stdio mode needs none; HTTP mode uses `--auth-token` for bearer token auth (`Authorization: Bearer` on MCP requests and the `/ssh` WebSocket upgrade; `/ssh?token=` is also accepted for older clients); SSH uses password or public key auth.
+- **TLS**: The daemon serves plain HTTP/WS. Terminate TLS at a reverse proxy and connect clients with `secure: true` or port 443.
 - **Isolation**: Use `--isolation bwrap` for Linux namespace isolation, `software` for heuristic validation, or `none` in trusted environments.
 - **Command safety**: Dangerous commands (privilege escalation, pipe-to-shell, etc.) are blocked by default in full daemon mode.
 

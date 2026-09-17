@@ -29,6 +29,8 @@
 import { experimental_createMCPClient as createMCPClient } from '@ai-sdk/mcp'
 import type { Backend } from '../backends/types.js'
 import { BackendType } from '../backends/types.js'
+import { remoteMCPBaseUrl } from '../mcp/transport.js'
+import { getRootBackend, hasRemoteConfig } from '../typing.js'
 
 /** Default timeout for MCP client connection (15 seconds) */
 const DEFAULT_CONNECTION_TIMEOUT_MS = 15_000
@@ -108,6 +110,17 @@ export class VercelAIAdapter {
         throw new Error(
           `MCP connection refused. The MCP server is not running or not reachable. ` +
           `Original error: ${message}`,
+          { cause: error }
+        )
+      }
+
+      // HTTP errors from the MCP SDK carry the status in `code` but name neither it nor the endpoint
+      const root = getRootBackend(this.backend)
+      if (hasRemoteConfig(root)) {
+        const code = (error as { code?: unknown } | null)?.code
+        const status = typeof code === 'number' ? ` (HTTP ${code})` : ''
+        throw new Error(
+          `MCP connection to ${remoteMCPBaseUrl(root.config)}/mcp failed${status}: ${message}`,
           { cause: error }
         )
       }
