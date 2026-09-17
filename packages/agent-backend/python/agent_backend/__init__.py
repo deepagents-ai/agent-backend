@@ -36,7 +36,7 @@ from agent_backend.types import (
     StatusChangeEvent,
 )
 
-__version__ = "0.13.1"
+__version__ = "0.13.2"
 
 __all__ = [
     "ArrayOperationsLogger",
