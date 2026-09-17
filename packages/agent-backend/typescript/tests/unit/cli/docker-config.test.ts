@@ -199,7 +199,7 @@ describe('start-docker config', () => {
 
   describe('hasRegistryHost', () => {
     it.each([
-      'ghcr.io/aspects-ai/agentbe-daemon:latest',
+      'ghcr.io/deepagents-ai/agentbe-daemon:latest',
       'localhost:5000/agentbe-daemon',
       'localhost/agentbe-daemon',
       'registry.example.com:8443/team/image:1',

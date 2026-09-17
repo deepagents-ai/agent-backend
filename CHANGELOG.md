@@ -14,6 +14,17 @@ for the updated contract.
 
 ### Added
 
+- `RemoteFilesystemBackendConfig.secure` (TypeScript and Python): use TLS for
+  both daemon channels — MCP over `https://` and SSH-over-WebSocket over
+  `wss://`. When unset, TLS is used only on port 443.
+- `RemoteFilesystemBackendConfig.headers` (TypeScript and Python): extra
+  headers sent on every MCP request and on the SSH-over-WebSocket upgrade, for
+  reaching a daemon behind a reverse proxy that routes on a header. They cannot
+  override `Authorization`, `X-Root-Dir` or `X-Scope-Path`. Scoped backends
+  send their root backend's headers. `createAgentBeMCPTransport` and
+  `createAgentBeMCPClient` accept the same `headers` option.
+- The `agentbe-daemon` image is also tagged with the bare package version
+  (e.g. `0.13.2`), so the image can be pinned to the installed client version.
 - **Agent document room** (`@agentbe/room`): a multiplayer, versioned,
   content-addressed document store with semantic + cross-modal (text/image)
   search and sandboxed command execution, exposed to agents over MCP
@@ -44,6 +55,31 @@ for the updated contract.
 
 ### Fixed
 
+- `RemoteFilesystemBackend.getMCPClient(scopePath)` ignored its scope and sent
+  neither `X-Root-Dir` nor `X-Scope-Path`, so `backend.scope('a/b').getMCPClient()`
+  operated on the daemon's root. It now uses the same transport as
+  `getMCPTransport`. As a consequence it now also sends `X-Root-Dir`, so a
+  client `rootDir` that doesn't match the daemon's is rejected with 403, as it
+  already was through `getMCPTransport`/`VercelAIAdapter`. The Python
+  `get_mcp_client` had the same shape of bug (it sent a scope-joined
+  `X-Root-Dir`) and is fixed the same way.
+- Python: the MCP channel ignored `port` and always used `mcp_port` (default
+  3001), while SSH-over-WebSocket used `port`. Both channels now use
+  `port or mcp_port`, matching TypeScript's single-port model.
+- The default `start-docker` image pointed at the stale
+  `ghcr.io/aspects-ai/agentbe-daemon:latest` (agent-backend 0.8.7, amd64 only,
+  incompatible entrypoint). It is now `ghcr.io/deepagents-ai/agentbe-daemon:latest`.
+- **Security:** commands run by the daemon (exec, SSH exec and shell sessions)
+  inherited the daemon's environment, so `env` in the sandbox printed
+  `AUTH_TOKEN`. The daemon now removes `AUTH_TOKEN` and `MCP_AUTH_TOKEN` from
+  its environment at startup. Nothing in agent-backend reads either variable
+  from a child process. A command that relied on `$AUTH_TOKEN` must now be
+  given it explicitly (e.g. through a scope's `env`).
+- **Security:** the daemon compared auth tokens with `===`, which can leak
+  timing information. `/mcp` and `/ssh` now use constant-time comparison.
+- `VercelAIAdapter.getMCPClient` errors for remote backends now name the MCP
+  endpoint and HTTP status, and SSH-over-WebSocket connection errors name the
+  WebSocket URL, instead of a bare "Error POSTing to endpoint".
 - `edit_file` could hang the daemon indefinitely at 100% CPU. Its hand-rolled
   unified-diff renderer advanced its two cursors only inside a pair of 10-line
   lookahead scans, and when both scans declined to advance — which any adjacent
@@ -57,6 +93,15 @@ for the updated contract.
 
 ### Changed
 
+- **Remote MCP uses HTTPS on port 443.** With `secure` unset and `port: 443`,
+  the MCP channel now connects over `https://` (it was always `http://`),
+  matching the SSH-over-WebSocket channel, which already used `wss://` there.
+  Set `secure: false` to keep plain HTTP on 443.
+- **SSH-over-WebSocket token moved to a header.** The TypeScript client now
+  sends the auth token as `Authorization: Bearer <token>` on the upgrade
+  request instead of `?token=` in the URL, which proxies and access logs
+  record. Every daemon from 0.13.1 on accepts the header; the daemon still
+  accepts the query parameter so older clients keep connecting.
 - `edit_file` diffs now carry standard `@@` hunk headers with 3 lines of
   context, and rendering is bounded by a budget enforced inside the diff loop
   (15 s wall clock, 20,000 line-level edits). On breach the tool returns the

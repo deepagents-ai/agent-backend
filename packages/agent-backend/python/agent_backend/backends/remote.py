@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import posixpath
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from agent_backend.backends.path_validation import (
     validate_within_boundary,
@@ -98,6 +98,8 @@ class RemoteFilesystemBackend:
                 host=self._host,
                 port=self._port,
                 auth_token=self._auth_token,
+                secure=self._config.secure,
+                headers=self._config.headers,
                 keepalive_interval=self._keepalive_interval,
                 keepalive_count_max=self._keepalive_count_max,
             )
@@ -408,17 +410,16 @@ class RemoteFilesystemBackend:
 
     async def get_mcp_client(self, scope_path: str | None = None) -> object:
         from agent_backend.mcp_integration.client import create_remote_mcp_client
+        from agent_backend.mcp_integration.transport import create_backend_mcp_transport
 
-        mcp_host = self._mcp_host_override or self._host
-        mcp_port = self._mcp_port
-        effective_root = (
-            posixpath.join(self._root_dir, scope_path) if scope_path else self._root_dir
-        )
+        # Same transport as get_mcp_transport, so root dir, scope, TLS and headers match
+        transport: Any = await create_backend_mcp_transport(self, scope_path)
         client = await create_remote_mcp_client(
-            url=f"http://{mcp_host}:{mcp_port}",
-            auth_token=self._auth_token or "",
-            root_dir=effective_root,
-            scope_path=scope_path,
+            url=transport.url,
+            auth_token=transport.auth_token,
+            root_dir=transport.root_dir,
+            scope_path=transport.scope_path,
+            headers=transport.headers,
         )
         self._closeables.add(client)
         return client

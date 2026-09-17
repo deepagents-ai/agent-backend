@@ -25,9 +25,40 @@ Configuration:
 - Transport type: SSH-over-WebSocket (default) or conventional SSH (optional to support)
 - Authentication credentials (token for WebSocket/MCP; password or key-based for conventional SSH)
 - MCP server port
+- TLS (`secure`, optional boolean)
+- Extra request headers (`headers`, optional string-to-string map)
 - Reconnection settings (max retries, backoff)
 - Operation timeout
 - Keepalive interval
+
+#### Daemon URLs and TLS
+
+Both daemon channels are derived from the same host, port, and `secure` setting. The URL scheme MUST be chosen as follows:
+
+| Channel | `secure: true` | `secure: false` | `secure` unset |
+|---------|----------------|-----------------|----------------|
+| MCP | `https://host:port/mcp` | `http://host:port/mcp` | `https` if port is 443, else `http` |
+| SSH-over-WebSocket | `wss://host:port/ssh` | `ws://host:port/ssh` | `wss` if port is 443, else `ws` |
+
+TLS connections MUST use the platform's default certificate verification. Implementations MUST NOT disable verification.
+
+Given `{ host: "d.example.com", port: 443 }` (no `secure`):
+- The MCP channel MUST connect to `https://d.example.com:443/mcp`.
+- The SSH channel MUST connect to `wss://d.example.com:443/ssh`.
+
+Given `{ host: "localhost", port: 3001, secure: true }`:
+- The MCP channel MUST connect to `https://localhost:3001/mcp`, and the SSH channel to `wss://localhost:3001/ssh`.
+
+#### Extra Headers
+
+When `headers` is configured, every request to the daemon MUST carry those headers: every MCP HTTP request and the SSH-over-WebSocket upgrade request. This lets a client reach a daemon behind a reverse proxy that routes on a request header.
+
+- Headers set by the library MUST take precedence over `headers`. `Authorization`, `X-Root-Dir`, and `X-Scope-Path` MUST NOT be overridable, compared case-insensitively. A conflicting entry in `headers` MUST be dropped rather than sent alongside the library's value.
+- Scoped backends MUST send their root backend's `headers`.
+
+#### SSH-over-WebSocket Authentication
+
+The client MUST send the auth token as an `Authorization: Bearer <token>` header on the WebSocket upgrade request. The client MUST NOT place the token in the URL (query strings are recorded by proxies and access logs).
 
 ### Memory Backend
 
@@ -345,7 +376,9 @@ Backends MUST provide a way to obtain an MCP (Model Context Protocol) client or 
 - MUST return a connected MCP client wrapping the transport.
 - The client MUST be tracked for automatic cleanup on destroy.
 - For local backends: the CLI is spawned with appropriate flags (root directory, isolation mode, shell, local-only).
-- For remote backends: the client connects to the remote host's MCP server with authentication.
+- For remote backends: the client connects to the remote host's MCP server with authentication, over the same transport `getMCPTransport` returns for the same scope path. It MUST send the root directory and scope path headers, so a scoped backend's MCP client operates on the scope rather than the daemon's root.
+
+Given a remote backend `b`, `b.scope("a/b").getMCPClient()` MUST send `X-Scope-Path: a/b` on its MCP requests.
 
 ### MCP Server Tools
 

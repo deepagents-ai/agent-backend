@@ -21,6 +21,7 @@ import type { AuthContext, Connection, ExecInfo, PseudoTtyInfo, ServerChannel, S
 import { Duplex } from 'stream'
 import { WebSocket, WebSocketServer } from 'ws'
 import { SSH2Server } from '../utils/ssh2.js'
+import { secretsEqual } from './auth.js'
 import { createSFTPHandler } from './SFTPHandler.js'
 
 export interface WebSocketSSHServerOptions {
@@ -102,13 +103,13 @@ function authenticateConnection(req: IncomingMessage, expectedToken?: string): b
   // Check query parameter: /ssh?token=xxx
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`)
   const queryToken = url.searchParams.get('token')
-  if (queryToken === expectedToken) return true
+  if (secretsEqual(queryToken, expectedToken)) return true
 
   // Check Authorization header: Bearer xxx
   const authHeader = req.headers['authorization']
   if (authHeader?.startsWith('Bearer ')) {
     const headerToken = authHeader.slice(7)
-    if (headerToken === expectedToken) return true
+    if (secretsEqual(headerToken, expectedToken)) return true
   }
 
   return false

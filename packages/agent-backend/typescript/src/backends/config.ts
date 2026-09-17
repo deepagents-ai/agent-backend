@@ -93,6 +93,19 @@ export interface RemoteFilesystemBackendConfig extends BaseFileBackendConfig {
   port?: number
 
   /**
+   * Use TLS for both daemon channels (MCP over https://, SSH-WS over wss://).
+   * Default: TLS when port is 443, plain otherwise. Ignored for 'ssh' transport.
+   */
+  secure?: boolean
+
+  /**
+   * Extra headers sent on every MCP request and on the SSH-WS upgrade request,
+   * e.g. for a reverse proxy that routes on a header. Cannot override
+   * Authorization, X-Root-Dir or X-Scope-Path.
+   */
+  headers?: Record<string, string>
+
+  /**
    * SSH authentication (required when transport is 'ssh', ignored for 'ssh-ws')
    */
   sshAuth?: {
@@ -188,6 +201,8 @@ const RemoteFilesystemBackendConfigSchema = z.object({
   transport: z.enum(['ssh-ws', 'ssh']).optional(),
   authToken: z.string().optional(),
   port: z.number().positive().optional(),
+  secure: z.boolean().optional(),
+  headers: z.record(z.string(), z.string()).optional(),
   sshAuth: z.object({
     type: z.enum(['password', 'key']),
     credentials: z.object({

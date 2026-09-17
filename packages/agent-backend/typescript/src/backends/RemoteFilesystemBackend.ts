@@ -1,5 +1,4 @@
 import { Client as MCPClient } from '@modelcontextprotocol/sdk/client/index.js'
-import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js'
 import type { Stats } from 'fs'
 import { clearTimeout, setTimeout } from 'node:timers'
@@ -960,39 +959,9 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
    * @returns MCP Client connected to HTTP MCP server on remote host
    * @throws {BackendError} If host is not configured
    */
-  async getMCPClient(_scopePath?: string): Promise<MCPClient> {
-    // Remote backends MUST use HTTP to connect to MCP server on remote host
-    if (!this.config.host) {
-      throw new BackendError(
-        'RemoteFilesystemBackend requires host to be configured. ' +
-        'The MCP server must run on the remote host and be accessible via HTTP. ' +
-        'Start the MCP server on the remote host with: ' +
-        `agent-backend daemon --rootDir ${this.rootDir}`,
-        ERROR_CODES.INVALID_CONFIGURATION,
-        'host'
-      )
-    }
-
-    // Construct MCP server URL from host and port
-    const mcpHost = this.config.mcpServerHostOverride || this.config.host
-    const mcpPort = this.config.port ?? 3001
-    const mcpServerUrl = `http://${mcpHost}:${mcpPort}`
-
-    const authToken = this.config.authToken
-
-    // Create HTTP transport to remote MCP server
-    const transport = new StreamableHTTPClientTransport(
-      new URL('/mcp', mcpServerUrl),
-      {
-        requestInit: {
-          headers: {
-            ...(authToken && {
-              'Authorization': `Bearer ${authToken}`,
-            }),
-          },
-        },
-      }
-    )
+  async getMCPClient(scopePath?: string): Promise<MCPClient> {
+    // Same transport as getMCPTransport, so root dir, scope, TLS and headers are applied once
+    const transport = await createBackendMCPTransport(this, scopePath)
 
     const client = new MCPClient(
       {
@@ -1129,6 +1098,8 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
       port,
       path: '/ssh',
       authToken: this.config.authToken,
+      secure: this.config.secure,
+      headers: this.config.headers,
       timeout: this.operationTimeoutMs,
       keepaliveInterval: this.keepaliveIntervalMs
     })

@@ -205,6 +205,7 @@ jobs:
           tags: |
             type=raw,value=latest
             type=raw,value=v${{ env.VERSION }}
+            type=raw,value=${{ env.VERSION }}
             type=sha,prefix=
             type=raw,value={{date 'YYYYMMDD-HHmmss'}}
 

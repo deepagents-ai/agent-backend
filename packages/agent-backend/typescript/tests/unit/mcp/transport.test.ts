@@ -27,6 +27,19 @@ vi.mock('@modelcontextprotocol/sdk/client/streamableHttp.js', () => ({
   }),
 }))
 
+vi.mock('@modelcontextprotocol/sdk/client/index.js', () => ({
+  Client: vi.fn().mockImplementation(function () {
+    return {
+      connect: vi.fn(async function (this: { transport?: unknown }, transport: unknown) {
+        this.transport = transport
+      }),
+      close: vi.fn(),
+    }
+  }),
+}))
+
+type MockHttpTransport = { url: URL; options: { requestInit: { headers: Record<string, string> } } }
+
 describe('MCP Transport (Unit Tests)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -187,6 +200,86 @@ describe('MCP Transport (Unit Tests)', () => {
         const transport = await createBackendMCPTransport(mockBackend as any)
 
         expect((transport as any).url.toString()).toBe('http://override.example.com:4000/mcp')
+      })
+    })
+
+    describe('RemoteFilesystemBackend TLS and headers', () => {
+      function remote(config: Record<string, unknown>) {
+        return new RemoteFilesystemBackend({
+          rootDir: '/var/workspace',
+          host: 'd.example.com',
+          authToken: 'tok',
+          ...config,
+        })
+      }
+
+      it.each([
+        [true, 3001, 'https://d.example.com:3001/mcp'],
+        [true, 443, 'https://d.example.com/mcp'],
+        [false, 3001, 'http://d.example.com:3001/mcp'],
+        [false, 443, 'http://d.example.com:443/mcp'],
+        [undefined, 3001, 'http://d.example.com:3001/mcp'],
+        [undefined, 443, 'https://d.example.com/mcp'],
+      ])('secure=%s port=%s uses %s', async (secure, port, expected) => {
+        // URL normalizes away the scheme's default port
+        const transport = await createBackendMCPTransport(remote({ secure, port })) as unknown as MockHttpTransport
+        expect(transport.url.toString()).toBe(expected)
+      })
+
+      it('sends extra headers alongside the library headers', async () => {
+        const transport = await createBackendMCPTransport(
+          remote({ headers: { 'fly-force-instance-id': 'm1' } }),
+          'a/b'
+        ) as unknown as MockHttpTransport
+        expect(transport.options.requestInit.headers).toEqual({
+          'fly-force-instance-id': 'm1',
+          'Authorization': 'Bearer tok',
+          'X-Root-Dir': '/var/workspace',
+          'X-Scope-Path': 'a/b',
+        })
+      })
+
+      it('does not let extra headers override Authorization, X-Root-Dir or X-Scope-Path', async () => {
+        const transport = await createBackendMCPTransport(
+          remote({
+            headers: {
+              'authorization': 'Bearer evil',
+              'x-root-dir': '/',
+              'X-SCOPE-PATH': '..',
+              'x-route': 'a',
+            },
+          })
+        ) as unknown as MockHttpTransport
+        expect(transport.options.requestInit.headers).toEqual({
+          'x-route': 'a',
+          'Authorization': 'Bearer tok',
+          'X-Root-Dir': '/var/workspace',
+        })
+      })
+
+      it('scoped backends send the root backend headers', async () => {
+        const backend = remote({ secure: true, headers: { 'x-route': 'a' } })
+        const transport = await backend.scope('a/b').getMCPTransport() as unknown as MockHttpTransport
+        expect(transport.url.protocol).toBe('https:')
+        expect(transport.options.requestInit.headers['x-route']).toBe('a')
+        expect(transport.options.requestInit.headers['X-Scope-Path']).toBe('a/b')
+      })
+
+      it('getMCPClient on a scope sends the scope, root dir and headers', async () => {
+        const backend = remote({ port: 443, headers: { 'x-route': 'a' } })
+        const client = await backend.scope('a/b').getMCPClient() as unknown as { transport: MockHttpTransport }
+        expect(client.transport.url.toString()).toBe('https://d.example.com/mcp')
+        expect(client.transport.options.requestInit.headers).toEqual({
+          'x-route': 'a',
+          'Authorization': 'Bearer tok',
+          'X-Root-Dir': '/var/workspace',
+          'X-Scope-Path': 'a/b',
+        })
+      })
+
+      it('rejects a non-boolean secure and non-string header values', () => {
+        expect(() => remote({ secure: 'yes' })).toThrow()
+        expect(() => remote({ headers: { 'x-route': 1 } })).toThrow()
       })
     })
 

@@ -48,16 +48,20 @@ async def create_backend_mcp_transport(
     elif backend_type == BackendType.REMOTE_FILESYSTEM:
         config = backend.config
         mcp_host = config.mcp_server_host_override or config.host
-        mcp_port = config.mcp_port or 3001
+        # Same port as the SSH-WS channel (see RemoteFilesystemBackend)
+        mcp_port = config.port or config.mcp_port or 3001
         root_dir = backend.root_dir
 
+        from agent_backend.backends.transports.daemon_endpoint import daemon_scheme
         from agent_backend.mcp_integration.client import create_http_transport
 
+        scheme = daemon_scheme("http", mcp_port, config.secure)
         return create_http_transport(
-            url=f"http://{mcp_host}:{mcp_port}",
+            url=f"{scheme}://{mcp_host}:{mcp_port}",
             auth_token=config.auth_token or "",
             root_dir=root_dir,
             scope_path=scope_path,
+            headers=config.headers,
         )
 
     elif backend_type == BackendType.MEMORY:

@@ -8,6 +8,8 @@
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 import type { Backend } from '../backends/types.js'
+import type { RemoteFilesystemBackendConfig } from '../backends/config.js'
+import { daemonScheme } from '../backends/transports/daemonEndpoint.js'
 import { BackendType } from '../backends/types.js'
 import { ERROR_CODES } from '../constants.js'
 import { BackendError } from '../types.js'
@@ -89,6 +91,15 @@ async function createLocalTransport(
 }
 
 /**
+ * Base URL (scheme, host, port) of a remote daemon's MCP endpoint
+ */
+export function remoteMCPBaseUrl(config: RemoteFilesystemBackendConfig): string {
+  const mcpHost = config.mcpServerHostOverride || config.host
+  const mcpPort = config.port || 3001
+  return `${daemonScheme('http', mcpPort, config.secure)}://${mcpHost}:${mcpPort}`
+}
+
+/**
  * Create HTTP transport for remote filesystem backend
  */
 async function createRemoteTransport(
@@ -106,15 +117,14 @@ async function createRemoteTransport(
   }
 
   const { config } = rootBackend
-  const mcpHost = config.mcpServerHostOverride || config.host
-  const mcpPort = config.port || 3001
   const defaultRootDir = isFileBasedBackend(backend) ? backend.rootDir : '/'
 
   return createAgentBeMCPTransport({
-    url: `http://${mcpHost}:${mcpPort}`,
+    url: remoteMCPBaseUrl(config),
     authToken: config.authToken || '',
     rootDir: defaultRootDir,
-    scopePath
+    scopePath,
+    headers: config.headers,
   })
 }
 

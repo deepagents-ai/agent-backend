@@ -1,5 +1,6 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
+import { mergeDaemonHeaders } from '../backends/transports/daemonEndpoint.js'
 
 export interface AgentBeMCPClientOptions {
   /** MCP server URL (e.g., 'http://backend.example.com:3000') */
@@ -10,6 +11,11 @@ export interface AgentBeMCPClientOptions {
   rootDir: string
   /** Optional scope path for scoped backends */
   scopePath?: string
+  /**
+   * Extra headers sent on every MCP request.
+   * Cannot override Authorization, X-Root-Dir or X-Scope-Path.
+   */
+  headers?: Record<string, string>
 }
 
 /**
@@ -61,18 +67,18 @@ export interface AgentBeMCPClientOptions {
 export function createAgentBeMCPTransport(
   options: AgentBeMCPClientOptions
 ): StreamableHTTPClientTransport {
-  const headers: Record<string, string> = {
+  const ownHeaders: Record<string, string> = {
     'Authorization': `Bearer ${options.authToken}`,
     'X-Root-Dir': options.rootDir,
   }
   if (options.scopePath) {
-    headers['X-Scope-Path'] = options.scopePath
+    ownHeaders['X-Scope-Path'] = options.scopePath
   }
   return new StreamableHTTPClientTransport(
     new URL('/mcp', options.url),
     {
       requestInit: {
-        headers,
+        headers: mergeDaemonHeaders(options.headers, ownHeaders),
       },
     }
   )

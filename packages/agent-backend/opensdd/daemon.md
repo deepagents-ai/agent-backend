@@ -165,7 +165,7 @@ When no auth token is configured, all requests MUST be accepted without authenti
 
 ### MCP Endpoint Authentication
 
-The daemon MUST check the `Authorization` header for the value `Bearer <token>`. The comparison MUST be an exact string match.
+The daemon MUST check the `Authorization` header for the value `Bearer <token>`. The comparison MUST be an exact match and MUST take time independent of where the supplied value differs from the expected one, or of its length (constant-time comparison).
 
 On failure, the daemon MUST respond with HTTP 401:
 ```json
@@ -181,7 +181,7 @@ The daemon MUST check for the token in two locations, in order:
 1. Query parameter: `/ssh?token=<token>`
 2. `Authorization` header: `Bearer <token>`
 
-If either matches, authentication succeeds. On failure, the daemon MUST close the WebSocket with code `4001` and reason `"Unauthorized"`.
+Both comparisons MUST be constant-time, as for the MCP endpoint. If either matches, authentication succeeds. Clients send the header (see [Client Libraries](clients.md)); the query parameter is retained so older clients still connect. On failure, the daemon MUST close the WebSocket with code `4001` and reason `"Unauthorized"`.
 
 ---
 
@@ -483,6 +483,10 @@ When `INCLUDE_SSHD=true`, the image MUST configure sshd at build time:
 6. Create `/root/.ssh` (mode `700`) with an empty `authorized_keys` file (mode `600`).
 7. Set the default root password (`root:agents`) via `chpasswd`.
 
+### Published Tags
+
+The release image is published as `ghcr.io/deepagents-ai/agentbe-daemon`. Each release MUST be tagged with the bare package version (e.g., `0.13.1`), so a consumer can pin the image to the client library version it installed, in addition to `v<version>`, the short commit SHA, and `latest`.
+
 ### Workspace Directory
 
 The image MUST create `/var/workspace` with mode `755`, owned by `root:root`.
@@ -543,7 +547,7 @@ The `agent-backend` CLI provides `start-docker` and `stop-docker` subcommands. T
 | `--auth-token <token>` | string | launcher's `AUTH_TOKEN` env var, else none | Passed to the container as `AUTH_TOKEN` |
 | `--workspace <path>` | string | none | Host directory bind-mounted at `/var/workspace` |
 | `--env-file <path>` | string | none | Env file passed to the container |
-| `--image <ref>` | string | `ghcr.io/aspects-ai/agentbe-daemon:latest` | Image to run |
+| `--image <ref>` | string | `ghcr.io/deepagents-ai/agentbe-daemon:latest` | Image to run |
 | `--build` | boolean | `false` | Build the image from source and run it (source checkout only) |
 | `--dev` | boolean | `false` | Run from mounted source with hot reload (source checkout only) |
 | `--foreground` | boolean | `false` | Stay attached to the container instead of detaching |
@@ -592,11 +596,19 @@ All file operations — whether via MCP tools, SFTP, or shell execution — MUST
 
 In full daemon mode, the backend MUST be configured with dangerous command blocking enabled. The daemon delegates command safety enforcement to the backend layer (see [Command Safety](safety.md) for the full list of blocked patterns).
 
+### Child Process Environment
+
+Processes the daemon spawns (exec commands, SSH exec and shell sessions) MUST NOT inherit `AUTH_TOKEN` or `MCP_AUTH_TOKEN` from the daemon's environment.
+
+Given a daemon started with `AUTH_TOKEN=secret` in its environment, running `env` through `/ssh` or an MCP exec tool MUST NOT print `secret`.
+
+This keeps the token out of a child's environment only. A child running as the same OS user can still read the daemon's original environment and command line through `/proc`. Deployments that need to hide the token from commands MUST run those commands as a different user or in a separate PID namespace.
+
 ### Authentication Token Recommendations
 
 - Deployments exposed to the network SHOULD configure an auth token.
 - Auth tokens SHOULD be generated with sufficient entropy (e.g., 256-bit random).
-- Tokens are compared via exact string match. Implementations SHOULD use constant-time comparison to prevent timing attacks.
+- Tokens are compared via constant-time exact match (see [Authentication](#authentication)) to prevent timing attacks.
 
 ### SSH Host Key Stability
 

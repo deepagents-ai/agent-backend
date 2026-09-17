@@ -1,0 +1,14 @@
+# TLS-terminating proxy that routes on a request header, like Fly's
+# fly-force-instance-id. Anything without `x-route: a` gets a 404.
+{
+	local_certs
+	admin off
+}
+
+https://localhost:{$PROXY_PORT} {
+	@routed header x-route a
+	handle @routed {
+		reverse_proxy host.docker.internal:{$DAEMON_PORT}
+	}
+	respond 404
+}

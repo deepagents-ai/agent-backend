@@ -51,7 +51,7 @@ agent-backend start-docker --workspace ./workspace --auth-token your-secret-toke
 agent-backend stop-docker
 ```
 
-`start-docker` runs `ghcr.io/aspects-ai/agentbe-daemon:latest` as a container named `agentbe-daemon`, published on `127.0.0.1:3001`. It replaces any existing `agentbe-daemon` container, waits for `/health`, and prints the `RemoteFilesystemBackend` connection settings. `stop-docker` stops and removes the container.
+`start-docker` runs `ghcr.io/deepagents-ai/agentbe-daemon:latest` as a container named `agentbe-daemon`, published on `127.0.0.1:3001`. It replaces any existing `agentbe-daemon` container, waits for `/health`, and prints the `RemoteFilesystemBackend` connection settings. `stop-docker` stops and removes the container.
 
 | Flag | Default | Description |
 |------|---------|-------------|
@@ -60,7 +60,7 @@ agent-backend stop-docker
 | `--auth-token <token>` | `$AUTH_TOKEN`, else none | Auth token for MCP and SSH-WS |
 | `--workspace <path>` | none | Host directory mounted at `/var/workspace`. Without it, files are lost when the container is removed. |
 | `--env-file <path>` | none | Env file passed to the container |
-| `--image <ref>` | `ghcr.io/aspects-ai/agentbe-daemon:latest` | Image to run |
+| `--image <ref>` | `ghcr.io/deepagents-ai/agentbe-daemon:latest` | Image to run |
 | `--build` | off | Build the image from source first (source checkout only) |
 | `--dev` | off | Hot-reload from mounted source (source checkout only) |
 | `--foreground` | off | Stay attached instead of detaching |
@@ -187,7 +187,7 @@ The deploy tool provisions a VM with Docker and configures agentbe-daemon automa
 3. Run the container:
 
 ```bash
-docker pull ghcr.io/aspects-ai/agentbe-daemon:latest
+docker pull ghcr.io/deepagents-ai/agentbe-daemon:latest
 
 docker run -d \
   --name agentbe-daemon \
@@ -195,7 +195,7 @@ docker run -d \
   -v /var/workspace:/var/workspace \
   -e AUTH_TOKEN=production-secret-token \
   --restart unless-stopped \
-  ghcr.io/aspects-ai/agentbe-daemon:latest
+  ghcr.io/deepagents-ai/agentbe-daemon:latest
 ```
 
 Only port `3001` is required. Both MCP and SSH-WS are served on that single port.
@@ -207,7 +207,7 @@ The Docker image provides three extension points:
 **Install additional packages** by building a derived image:
 
 ```dockerfile
-FROM ghcr.io/aspects-ai/agentbe-daemon:latest
+FROM ghcr.io/deepagents-ai/agentbe-daemon:latest
 RUN apt-get update && apt-get install -y your-package
 ```
 
@@ -216,7 +216,7 @@ RUN apt-get update && apt-get install -y your-package
 ```bash
 docker run -d \
   -v ./my-init.sh:/docker-entrypoint.d/my-init.sh:ro \
-  ghcr.io/aspects-ai/agentbe-daemon:latest
+  ghcr.io/deepagents-ai/agentbe-daemon:latest
 ```
 
 Scripts must be executable and have a `.sh` extension. They run in alphabetical order before the daemon starts.
@@ -224,7 +224,7 @@ Scripts must be executable and have a `.sh` extension. They run in alphabetical 
 **Override the default command** to use the container as a plain workspace:
 
 ```bash
-docker run -it ghcr.io/aspects-ai/agentbe-daemon:latest bash
+docker run -it ghcr.io/deepagents-ai/agentbe-daemon:latest bash
 ```
 
 ## Conventional SSH (Opt-In)
@@ -244,7 +244,7 @@ docker run -d \
   -e AUTH_TOKEN=your-secret-token \
   -e CONVENTIONAL_SSH=true \
   -e SSH_USERS=dev:secure-password \
-  ghcr.io/aspects-ai/agentbe-daemon:latest
+  ghcr.io/deepagents-ai/agentbe-daemon:latest
 ```
 
 ### Connect with Conventional SSH
@@ -286,7 +286,7 @@ ssh root@localhost -p 2222
 ```yaml
 services:
   agentbe-daemon:
-    image: ghcr.io/aspects-ai/agentbe-daemon:latest
+    image: ghcr.io/deepagents-ai/agentbe-daemon:latest
     ports:
       - "127.0.0.1:3001:3001"
     volumes:
