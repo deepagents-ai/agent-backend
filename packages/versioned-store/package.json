@@ -19,11 +19,11 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1131.0"
+    "@aws-sdk/client-s3": "^3.1135.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
     "typescript": "~6.0.3",
-    "vitest": "^5.0.0"
+    "vitest": "^5.0.1"
   }
 }
