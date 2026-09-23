@@ -12,7 +12,7 @@ type BackendGetter = (sessionId?: string) => Promise<Backend> | Backend
  * These match at any depth in the tree.
  */
 /**
- * read_text_file paging defaults. Tunable here; callers see them via the tool's
+ * read_file text paging defaults. Tunable here; callers see them via the tool's
  * footer. See opensdd/daemon.md for the behavioral contract.
  */
 export const DEFAULT_LIMIT = 1000
@@ -151,7 +151,7 @@ function formatSize(bytes: number): string {
 }
 
 /**
- * Format a byte count for the read_text_file footer. Granularities mandated by spec:
+ * Format a byte count for the read_file text footer. Granularities mandated by spec:
  * `<1 KB`, integer KB, one-decimal MB, one-decimal GB.
  */
 function formatTextFileSize(bytes: number): string {
@@ -216,8 +216,39 @@ function getMimeType(filePath: string): string {
 }
 
 /**
+ * Whether read_file returns this MIME type as an image/audio content block.
+ * SVG is excluded: it's text that agents edit, and model APIs generally reject it as an image.
+ */
+function isMediaMimeType(mimeType: string): boolean {
+  if (mimeType === 'image/svg+xml') return false
+  return mimeType.startsWith('image/') || mimeType.startsWith('audio/')
+}
+
+const KNOWN_BINARY_MIME_TYPES = new Set([
+  'application/pdf',
+  'application/zip',
+  'application/gzip',
+  'application/x-tar',
+])
+
+/**
+ * Whether the extension alone marks the file as a non-text binary. Unknown extensions
+ * map to application/octet-stream and are left to content sniffing instead.
+ */
+function isKnownBinaryMimeType(mimeType: string): boolean {
+  return mimeType.startsWith('video/') || KNOWN_BINARY_MIME_TYPES.has(mimeType)
+}
+
+/** Bytes sniffed for a NUL when deciding whether a file is binary (same heuristic as git). */
+const BINARY_SNIFF_BYTES = 8192
+
+function hasNulByte(buffer: Buffer): boolean {
+  return buffer.subarray(0, BINARY_SNIFF_BYTES).includes(0)
+}
+
+/**
  * Register all filesystem tools on an MCP server.
- * Compatible with official @modelcontextprotocol/server-filesystem.
+ * Modeled on @modelcontextprotocol/server-filesystem, diverging where opensdd/daemon.md says so.
  * Does NOT include exec tool - use registerExecTool() separately for backends that support it.
  */
 export function registerFilesystemTools(server: McpServer, getBackend: BackendGetter): void {
@@ -227,21 +258,67 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
   // ─────────────────────────────────────────────────────────────────
 
   server.registerTool(
-    'read_text_file',
+    'read_file',
     {
-      description: `Read file contents as text. Paginates by default: with no paging parameters, returns the first ${DEFAULT_LIMIT} lines and appends a footer indicating how much of the file was shown. Use offset and limit to read a later page of a large file. Lines longer than ${LINE_TRUNCATION_THRESHOLD} chars are truncated with an inline marker.`,
+      description: `Read a file. Text files return the first ${DEFAULT_LIMIT} lines with no paging parameters. Lines longer than ${LINE_TRUNCATION_THRESHOLD} chars truncated with an inline marker. Images and audio are returned as media content; other binary files return file info instead of their contents. To read several files, call this tool once per file in parallel.`,
       inputSchema: {
         path: z.string().describe('Path to the file'),
         offset: z.number().int().positive().optional()
-          .describe('The 1-based line number to start reading from. Only provide if the file is too large to read at once.'),
+          .describe('1-based line number to start reading from. Only provide if the file is too large to read at once.'),
         limit: z.number().int().positive().optional()
-          .describe('The number of lines to read. Only provide if the file is too large to read at once.'),
+          .describe('Number of lines to read. Only provide if the file is too large to read at once.'),
+        force: z.boolean().optional()
+          .describe('Return an unrecognized binary file as a base64 blob instead of file info. Has no effect on text, image or audio files. Off by default.'),
       },
     },
-    async ({ path: filePath, offset, limit }, { sessionId }) => {
+    async ({ path: filePath, offset, limit, force }, { sessionId }) => {
       const backend = await getBackend(sessionId) as FileBasedBackend
-      const content = await backend.read(filePath, { encoding: 'utf8' }) as string
-      const allLines = content.split('\n')
+      const mimeType = getMimeType(filePath)
+      const buffer = await backend.read(filePath, { encoding: 'buffer' }) as Buffer
+
+      if (isMediaMimeType(mimeType)) {
+        return {
+          content: [{
+            type: mimeType.startsWith('image/') ? 'image' as const : 'audio' as const,
+            data: buffer.toString('base64'),
+            mimeType,
+          }]
+        }
+      }
+
+      if (isKnownBinaryMimeType(mimeType) || hasNulByte(buffer)) {
+        // There's no common use for raw base64 of an arbitrary binary, so by default
+        // return file-level info the model can act on. `force` is the explicit opt-in.
+        if (!force) {
+          const stats = await backend.stat(filePath)
+          const ext = path.extname(filePath) || '(none)'
+          const info = [
+            `Path: ${filePath}`,
+            `Extension: ${ext}`,
+            `Detected MIME type: ${mimeType}`,
+            `Size: ${stats.size} bytes`,
+            `Modified: ${stats.mtime.toISOString()}`,
+          ].join('\n')
+          return {
+            content: [{
+              type: 'text',
+              text: `Unrecognized file type ${ext} for read_file (binary content, not an image or audio file).\n\n${info}\n\nUse get_file_info for full metadata, or exec to inspect it with a command-line tool. If you really need the raw bytes, call read_file again with force: true.`,
+            }],
+            isError: true,
+          }
+        }
+        return {
+          content: [{
+            // 'blob' is not in the SDK's content union; the spec keeps it for parity with
+            // the official filesystem server's binary fallback.
+            type: 'blob' as 'image',
+            data: buffer.toString('base64'),
+            mimeType,
+          }]
+        }
+      }
+
+      const allLines = buffer.toString('utf8').split('\n')
       const totalLines = allLines.length
 
       // Single paging mode: offset/limit. There is no invalid combination of
@@ -283,90 +360,6 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
       }
 
       return { content: [{ type: 'text', text }] }
-    }
-  )
-
-  server.registerTool(
-    'read_media_file',
-    {
-      description: 'Read an image or audio file, returns base64 data with MIME type',
-      inputSchema: {
-        path: z.string().describe('Path to the media file'),
-        force: z.boolean().optional().describe('Bypass the image/audio MIME type check and return the file as a base64 blob regardless of type. Off by default.'),
-      },
-    },
-    async ({ path: filePath, force }, { sessionId }) => {
-      const backend = await getBackend(sessionId) as FileBasedBackend
-      const mimeType = getMimeType(filePath)
-      const isMedia = mimeType.startsWith('image/') || mimeType.startsWith('audio/')
-
-      // Per the Anthropic filesystem MCP spec, this tool is scoped to image/* and audio/*.
-      // For anything else we return a text message with file-level info so the model can route
-      // to a more appropriate tool. `force: true` is an explicit opt-in bypass for callers that
-      // genuinely need the raw bytes.
-      if (!isMedia && !force) {
-        const stats = await backend.stat(filePath)
-        const ext = path.extname(filePath) || '(none)'
-        const info = [
-          `Path: ${filePath}`,
-          `Extension: ${ext}`,
-          `Detected MIME type: ${mimeType}`,
-          `Size: ${stats.size} bytes`,
-          `Modified: ${stats.mtime.toISOString()}`,
-        ].join('\n')
-        return {
-          content: [{
-            type: 'text',
-            text: `Unrecognized file type ${ext} for read_media_file (only image/* and audio/* are supported).\n\n${info}\n\nTry read_text_file for text content or get_file_info for full metadata. If you really need raw bytes, call read_media_file again with force: true.`,
-          }],
-          isError: true,
-        }
-      }
-
-      const buffer = await backend.read(filePath, { encoding: 'buffer' }) as Buffer
-      const base64 = buffer.toString('base64')
-      const contentType = mimeType.startsWith('image/')
-        ? 'image'
-        : mimeType.startsWith('audio/')
-          ? 'audio'
-          : 'blob'
-
-      return {
-        content: [{
-          type: contentType as 'image' | 'audio',
-          data: base64,
-          mimeType,
-        }]
-      }
-    }
-  )
-
-  server.registerTool(
-    'read_multiple_files',
-    {
-      description: 'Read several files simultaneously. Failed reads for individual files won\'t stop the entire operation.',
-      inputSchema: {
-        paths: z.array(z.string()).min(1).describe('Array of file paths to read'),
-      },
-    },
-    async ({ paths }, { sessionId }) => {
-      const backend = await getBackend(sessionId) as FileBasedBackend
-      const results = await Promise.all(
-        paths.map(async (filePath: string) => {
-          try {
-            const content = await backend.read(filePath, { encoding: 'utf8' })
-            return `${filePath}:\n${content}\n`
-          } catch (error) {
-            const errorMessage = error instanceof Error ? error.message : String(error)
-            return `${filePath}: Error - ${errorMessage}`
-          }
-        })
-      )
-
-      // Join with separator matching official MCP filesystem server format
-      return {
-        content: [{ type: 'text', text: results.join('\n---\n') }]
-      }
     }
   )
 
@@ -499,44 +492,16 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
   server.registerTool(
     'list_directory',
     {
-      description: 'List directory contents with [FILE] or [DIR] prefixes. Use "." for the root/current directory.',
+      description: 'List directory contents. Use "." for the root/current directory.',
       inputSchema: {
-        path: z.string().describe('Path to the directory (use "." for root)'),
-      },
-    },
-    async ({ path: dirPath }, { sessionId }) => {
-      const backend = await getBackend(sessionId) as FileBasedBackend
-      const entries = await backend.readdir(dirPath) as string[]
-
-      const formatted = await Promise.all(
-        entries.map(async (entry) => {
-          try {
-            const stats = await backend.stat(path.join(dirPath, entry))
-            const prefix = stats.isDirectory() ? '[DIR]' : '[FILE]'
-            return `${prefix} ${entry}`
-          } catch {
-            return `[?] ${entry}`
-          }
-        })
-      )
-
-      return {
-        content: [{ type: 'text', text: formatted.join('\n') }]
-      }
-    }
-  )
-
-  server.registerTool(
-    'list_directory_with_sizes',
-    {
-      description: 'List directory contents with prefixes, file sizes, and summary statistics. Use "." for the root/current directory.',
-      inputSchema: {
-        path: z.string().describe('Path to the directory (use "." for root)'),
+        path: z.string().describe('Path to the directory'),
+        includeSizes: z.boolean().optional()
+          .describe('Include file sizes and a summary of totals. Off by default.'),
         sortBy: z.enum(['name', 'size']).optional()
           .describe('Sort entries by name or size (descending), defaults to name'),
       },
     },
-    async ({ path: dirPath, sortBy: sortByParam }, { sessionId }) => {
+    async ({ path: dirPath, includeSizes, sortBy: sortByParam }, { sessionId }) => {
       const sortBy = sortByParam ?? 'name'
       const backend = await getBackend(sessionId) as FileBasedBackend
       const entries = await backend.readdir(dirPath) as string[]
@@ -545,35 +510,34 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
         entries.map(async (entry) => {
           try {
             const stats = await backend.stat(path.join(dirPath, entry))
-            return {
-              name: entry,
-              isDir: stats.isDirectory(),
-              size: stats.size,
-            }
+            return stats.isDirectory()
+              ? { name: entry, prefix: '[DIR]', isFile: false, size: 0 }
+              : { name: entry, prefix: '[FILE]', isFile: true, size: stats.size }
           } catch {
-            return { name: entry, isDir: false, size: 0 }
+            return { name: entry, prefix: '[?]', isFile: false, size: 0 }
           }
         })
       )
 
-      // Sort (size is descending, name is ascending)
-      detailed.sort((a, b) => {
-        if (sortBy === 'size') return b.size - a.size
-        return a.name.localeCompare(b.name)
-      })
+      // Size is descending; name (ascending) is the primary key for 'name' and the tiebreak for 'size'
+      detailed.sort((a, b) =>
+        (sortBy === 'size' ? b.size - a.size : 0) || a.name.localeCompare(b.name))
 
-      const formatted = detailed.map((d) => {
-        const prefix = d.isDir ? '[DIR]' : '[FILE]'
-        const size = d.isDir ? '' : ` ${formatSize(d.size)}`
-        return `${prefix} ${d.name.padEnd(30)}${size}`
-      })
+      if (!includeSizes) {
+        return {
+          content: [{ type: 'text', text: detailed.map(d => `${d.prefix} ${d.name}`).join('\n') }]
+        }
+      }
 
-      const totalSize = detailed.filter(d => !d.isDir).reduce((sum, d) => sum + d.size, 0)
-      const fileCount = detailed.filter(d => !d.isDir).length
-      const dirCount = detailed.filter(d => d.isDir).length
+      const formatted = detailed.map(d =>
+        d.isFile ? `${d.prefix} ${d.name.padEnd(30)} ${formatSize(d.size)}` : `${d.prefix} ${d.name}`)
+
+      const files = detailed.filter(d => d.isFile)
+      const dirCount = detailed.filter(d => d.prefix === '[DIR]').length
+      const totalSize = files.reduce((sum, d) => sum + d.size, 0)
 
       formatted.push('')
-      formatted.push(`Total: ${fileCount} files, ${dirCount} directories`)
+      formatted.push(`Total: ${files.length} files, ${dirCount} directories`)
       formatted.push(`Combined size: ${formatSize(totalSize)}`)
 
       return {
@@ -791,22 +755,6 @@ export function registerFilesystemTools(server: McpServer, getBackend: BackendGe
     }
   )
 
-  server.registerTool(
-    'list_allowed_directories',
-    {
-      description: 'List all directories the server is allowed to access',
-      inputSchema: z.object({}),
-    },
-    async (_args, { sessionId }) => {
-      const backend = await getBackend(sessionId) as FileBasedBackend
-      return {
-        content: [{
-          type: 'text',
-          text: `Allowed directories:\n- ${backend.rootDir}`
-        }]
-      }
-    }
-  )
 }
 
 /**
@@ -818,16 +766,14 @@ export function registerExecTool(server: McpServer, getBackend: BackendGetter): 
   server.registerTool(
     'exec',
     {
-      description: 'Execute a shell command in the workspace directory. Not available for memory backends.',
+      description: 'Execute a shell command in the workspace directory.',
       inputSchema: {
-        command: z.string().describe('Shell command to execute'),
-        env: z.record(z.string(), z.string()).optional()
-          .describe('Optional environment variables to set for this command'),
+        command: z.string().describe('Shell command to execute. Set per-command environment variables inline, e.g. FOO=bar cmd.'),
       },
     },
-    async ({ command, env }, { sessionId }) => {
+    async ({ command }, { sessionId }) => {
       const backend = await getBackend(sessionId) as FileBasedBackend
-      const result = await backend.exec(command, env ? { env } : undefined)
+      const result = await backend.exec(command)
       return {
         content: [{ type: 'text', text: result as string }]
       }
@@ -851,7 +797,7 @@ export function registerGrepTool(server: McpServer, getBackend: BackendGetter): 
   server.registerTool(
     'grep',
     {
-      description: 'Search file contents with ripgrep (rg). Returns matching file paths, per-file match counts, or match content. Respects .gitignore by default. Parameter shape mirrors Claude Code\'s Grep tool.',
+      description: 'Search file contents with ripgrep (rg). Returns matching file paths, per-file match counts, or match content. Respects .gitignore by default.',
       inputSchema: {
         pattern: z.string().describe('Regex pattern to search for'),
         path: z.string().optional().describe('File or directory to search in. Defaults to the workspace root.'),

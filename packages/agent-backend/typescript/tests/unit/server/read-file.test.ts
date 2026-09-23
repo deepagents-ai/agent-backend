@@ -7,26 +7,32 @@ import {
   MAX_LIMIT,
 } from '../../../src/server/tools.js'
 
+interface ToolResult {
+  content: Array<{ type: string, text?: string, data?: string, mimeType?: string }>
+  isError?: boolean
+}
+
 interface ToolEntry {
   name: string
   description: string
   inputSchema: unknown
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  handler: (args: any, ctx: { sessionId?: string }) => Promise<{ content: Array<{ type: string, text: string }> }>
+  handler: (args: any, ctx: { sessionId?: string }) => Promise<ToolResult>
 }
 
 function makeBackend(
-  fileContent: string | Error,
+  fileContent: string | Buffer | Error,
   fileSizeBytes?: number,
 ): FileBasedBackend {
-  const read = vi.fn().mockImplementation(async () => {
+  const read = vi.fn().mockImplementation(async (_path: string, options?: { encoding?: 'utf8' | 'buffer' }) => {
     if (fileContent instanceof Error) throw fileContent
-    return fileContent
+    const buffer = Buffer.isBuffer(fileContent) ? fileContent : Buffer.from(fileContent, 'utf8')
+    return options?.encoding === 'buffer' ? buffer : buffer.toString('utf8')
   })
   const stat = vi.fn().mockResolvedValue({
     isFile: () => true,
     isDirectory: () => false,
-    size: fileSizeBytes ?? (typeof fileContent === 'string' ? Buffer.byteLength(fileContent, 'utf8') : 0),
+    size: fileSizeBytes ?? (fileContent instanceof Error ? 0 : Buffer.byteLength(fileContent)),
     mtime: new Date(),
     atime: new Date(),
     birthtime: new Date(),
@@ -53,7 +59,7 @@ function makeBackend(
 
 function getReadTool(backend: FileBasedBackend): ToolEntry {
   const server = new AgentBackendMCPServer(backend)
-  return server.server.getTools()['read_text_file'] as unknown as ToolEntry
+  return server.server.getTools()['read_file'] as unknown as ToolEntry
 }
 
 async function call(
@@ -61,10 +67,10 @@ async function call(
   args: Record<string, unknown>,
 ): Promise<string> {
   const result = await tool.handler(args, {})
-  return result.content[0].text
+  return result.content[0].text ?? ''
 }
 
-describe('read_text_file — paging and truncation', () => {
+describe('read_file — text paging and truncation', () => {
   describe('small files (no footer)', () => {
     it('returns the full body with no footer when file fits under DEFAULT_LIMIT', async () => {
       const lines = Array.from({ length: 80 }, (_, i) => `line ${i + 1}`)
@@ -240,7 +246,7 @@ describe('read_text_file — paging and truncation', () => {
   })
 
   describe('size suffix formatting', () => {
-    // Run read_text_file in implicit mode with various stat sizes and read the suffix.
+    // Run read_file in implicit mode with various stat sizes and read the suffix.
     async function sizeSuffix(bytes: number): Promise<string> {
       const content = Array.from({ length: DEFAULT_LIMIT + 1 }, () => 'x').join('\n')
       const tool = getReadTool(makeBackend(content, bytes))
@@ -265,5 +271,79 @@ describe('read_text_file — paging and truncation', () => {
     it('one-decimal GB for gigabyte-and-up sizes', async () => {
       expect(await sizeSuffix(Math.round(2.5 * 1024 * 1024 * 1024))).toBe('2.5 GB')
     })
+  })
+})
+
+describe('read_file — type dispatch', () => {
+  const PNG = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00])
+
+  it('returns an image block for image files', async () => {
+    const result = await getReadTool(makeBackend(PNG)).handler({ path: 'logo.png' }, {})
+    expect(result.content).toEqual([{ type: 'image', data: PNG.toString('base64'), mimeType: 'image/png' }])
+    expect(result.isError).toBeUndefined()
+  })
+
+  it('returns an audio block for audio files', async () => {
+    const bytes = Buffer.from([0xff, 0xfb, 0x00, 0x01])
+    const result = await getReadTool(makeBackend(bytes)).handler({ path: 'clip.mp3' }, {})
+    expect(result.content).toEqual([{ type: 'audio', data: bytes.toString('base64'), mimeType: 'audio/mpeg' }])
+  })
+
+  it('ignores paging params and force for media files', async () => {
+    const result = await getReadTool(makeBackend(PNG)).handler({ path: 'logo.png', offset: 3, limit: 1, force: true }, {})
+    expect(result.content[0]).toMatchObject({ type: 'image', data: PNG.toString('base64') })
+  })
+
+  it('reads SVG as text rather than as an image', async () => {
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect/></svg>'
+    const result = await getReadTool(makeBackend(svg)).handler({ path: 'icon.svg' }, {})
+    expect(result.content).toEqual([{ type: 'text', text: svg }])
+  })
+
+  it('reads text files with an unknown extension as text', async () => {
+    const text = await call(getReadTool(makeBackend('export const x = 1\n')), { path: 'src/x.ts' })
+    expect(text).toBe('export const x = 1\n')
+  })
+
+  it('returns file info with isError for a NUL-containing file with no known extension', async () => {
+    const bytes = Buffer.from([0x7f, 0x45, 0x4c, 0x46, 0x00, 0x01])
+    const result = await getReadTool(makeBackend(bytes)).handler({ path: 'bin/tool' }, {})
+    expect(result.isError).toBe(true)
+    const text = result.content[0].text ?? ''
+    expect(text).toMatch(/^Unrecognized file type \(none\) for read_file/)
+    expect(text).toContain('Path: bin/tool')
+    expect(text).toContain('Detected MIME type: application/octet-stream')
+    expect(text).toContain('Size: 6 bytes')
+    expect(text).toMatch(/Modified: \d{4}-/)
+    expect(text).toContain('get_file_info')
+    expect(text).toContain('exec')
+    expect(text).toContain('force: true')
+  })
+
+  it('only sniffs the first 8,192 bytes for NUL', async () => {
+    const content = Buffer.concat([Buffer.alloc(8192, 'a'), Buffer.from([0])])
+    const result = await getReadTool(makeBackend(content)).handler({ path: 'x.log' }, {})
+    expect(result.isError).toBeUndefined()
+    expect(result.content[0].type).toBe('text')
+  })
+
+  it('treats known binary extensions as binary even without a NUL byte', async () => {
+    const result = await getReadTool(makeBackend('%PDF-1.7 no nul here')).handler({ path: 'doc.pdf' }, {})
+    expect(result.isError).toBe(true)
+    expect(result.content[0].text).toContain('Detected MIME type: application/pdf')
+  })
+
+  it('returns a base64 blob for a binary file when force is true', async () => {
+    const bytes = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x00])
+    const result = await getReadTool(makeBackend(bytes)).handler({ path: 'a.zip', force: true }, {})
+    expect(result.isError).toBeUndefined()
+    expect(result.content).toEqual([{ type: 'blob', data: bytes.toString('base64'), mimeType: 'application/zip' }])
+  })
+
+  it('force does not change the result for a text file', async () => {
+    const content = Array.from({ length: DEFAULT_LIMIT + 5 }, (_, i) => `l${i}`).join('\n')
+    const withForce = await call(getReadTool(makeBackend(content)), { path: 'x.txt', force: true })
+    const without = await call(getReadTool(makeBackend(content)), { path: 'x.txt' })
+    expect(withForce).toBe(without)
   })
 })

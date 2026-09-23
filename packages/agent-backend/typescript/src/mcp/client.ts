@@ -36,7 +36,7 @@ export interface AgentBeMCPClientOptions {
  *
  * // Call a tool directly
  * const result = await mcpClient.callTool({
- *   name: 'read_text_file',
+ *   name: 'read_file',
  *   arguments: { path: 'package.json' }
  * })
  * 

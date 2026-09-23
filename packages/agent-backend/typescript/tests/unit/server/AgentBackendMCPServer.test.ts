@@ -95,13 +95,30 @@ describe('AgentBackendMCPServer (Adaptive Server)', () => {
         const toolNames = Object.keys(tools)
 
         // Core filesystem tools
-        expect(toolNames).toContain('read_text_file')
+        expect(toolNames).toContain('read_file')
         expect(toolNames).toContain('write_file')
         expect(toolNames).toContain('list_directory')
         expect(toolNames).toContain('create_directory')
         expect(toolNames).toContain('move_file')
         expect(toolNames).toContain('search_files')
         expect(toolNames).toContain('get_file_info')
+      })
+
+      it('should not register the superseded read and list tools', () => {
+        const toolNames = Object.keys(server.server.getTools())
+
+        expect(toolNames).not.toContain('read_text_file')
+        expect(toolNames).not.toContain('read_media_file')
+        expect(toolNames).not.toContain('read_multiple_files')
+        expect(toolNames).not.toContain('list_directory_with_sizes')
+        expect(toolNames).not.toContain('list_allowed_directories')
+      })
+
+      it('should expose command as the only exec parameter', () => {
+        // getTools() stores the raw input shape plus a JSON-Schema `type: 'object'` marker
+        const exec = server.server.getTools()['exec'] as unknown as { inputSchema: Record<string, unknown> }
+
+        expect(Object.keys(exec.inputSchema).filter(k => k !== 'type')).toEqual(['command'])
       })
 
       it('should register exec tool for file-based backend', () => {
@@ -144,7 +161,7 @@ describe('AgentBackendMCPServer (Adaptive Server)', () => {
         expect(server.getBackend()).toBe(backend)
       })
 
-      it('should use backend rootDir for allowed directories', () => {
+      it('should expose the backend rootDir', () => {
         expect(server.getBackend().rootDir).toBe('/test/workspace')
       })
     })
@@ -157,9 +174,9 @@ describe('AgentBackendMCPServer (Adaptive Server)', () => {
 
       it('should provide tool metadata', () => {
         const tools = server.server.getTools()
-        const tool = tools['read_text_file']
+        const tool = tools['read_file']
 
-        expect(tool.name).toBe('read_text_file')
+        expect(tool.name).toBe('read_file')
         expect(tool.description).toBeTruthy()
         expect(tool.inputSchema).toBeDefined()
       })
@@ -192,7 +209,7 @@ describe('AgentBackendMCPServer (Adaptive Server)', () => {
         const tools = server.server.getTools()
         const toolNames = Object.keys(tools)
 
-        expect(toolNames).toContain('read_text_file')
+        expect(toolNames).toContain('read_file')
         expect(toolNames).toContain('write_file')
         expect(toolNames).toContain('list_directory')
       })
@@ -238,7 +255,7 @@ describe('AgentBackendMCPServer (Adaptive Server)', () => {
         const toolNames = Object.keys(tools)
 
         // Core filesystem tools (that work with memory backend)
-        expect(toolNames).toContain('read_text_file')
+        expect(toolNames).toContain('read_file')
         expect(toolNames).toContain('write_file')
         expect(toolNames).toContain('list_directory')
         expect(toolNames).toContain('get_file_info')
@@ -270,9 +287,9 @@ describe('AgentBackendMCPServer (Adaptive Server)', () => {
     })
 
     describe('Tool Handlers', () => {
-      it('should have read_text_file handler', () => {
+      it('should have read_file handler', () => {
         const tools = server.server.getTools()
-        const readTool = tools['read_text_file']
+        const readTool = tools['read_file']
 
         expect(readTool).toBeDefined()
         expect(typeof readTool.handler).toBe('function')

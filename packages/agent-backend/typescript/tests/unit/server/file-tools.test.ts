@@ -319,6 +319,90 @@ describe('search_files — mtime sorting', () => {
 })
 
 // ─────────────────────────────────────────────────────────────────
+// list_directory
+// ─────────────────────────────────────────────────────────────────
+
+describe('list_directory — sizes and sorting', () => {
+  // Entries of the fixture directory, in deliberately unsorted readdir order.
+  const fixture: Record<string, { isDir: boolean, size: number } | Error> = {
+    'b.txt': { isDir: false, size: 2048 },
+    'src': { isDir: true, size: 4096 },
+    'a.txt': { isDir: false, size: 10 },
+    'broken': new Error('EACCES'),
+    'c.txt': { isDir: false, size: 2048 },
+  }
+
+  function listBackend(): FileBasedBackend {
+    return makeBackend({
+      readdir: vi.fn().mockResolvedValue(Object.keys(fixture)),
+      stat: vi.fn().mockImplementation(async (p: string) => {
+        const entry = fixture[p.replace(/^dir\//, '')]
+        if (entry instanceof Error) throw entry
+        return {
+          isFile: () => !entry.isDir,
+          isDirectory: () => entry.isDir,
+          size: entry.size,
+          mtime: new Date(0),
+          atime: new Date(0),
+          birthtime: new Date(0),
+          mode: 0o644,
+        }
+      }),
+    })
+  }
+
+  async function list(args: Record<string, unknown>): Promise<string[]> {
+    const result = await tool(listBackend(), 'list_directory').handler({ path: 'dir', ...args }, {})
+    return result.content[0].text.split('\n')
+  }
+
+  it('lists prefixed entries sorted by name with no sizes by default', async () => {
+    expect(await list({})).toEqual([
+      '[FILE] a.txt',
+      '[FILE] b.txt',
+      '[?] broken',
+      '[FILE] c.txt',
+      '[DIR] src',
+    ])
+  })
+
+  it('sorts by file size descending, directories and unreadable entries as 0, ties by name', async () => {
+    expect(await list({ sortBy: 'size' })).toEqual([
+      '[FILE] b.txt',
+      '[FILE] c.txt',
+      '[FILE] a.txt',
+      '[?] broken',
+      '[DIR] src',
+    ])
+  })
+
+  it('adds file sizes and totals when includeSizes is true', async () => {
+    const lines = await list({ includeSizes: true })
+    expect(lines).toEqual([
+      `[FILE] ${'a.txt'.padEnd(30)} 10 B`,
+      `[FILE] ${'b.txt'.padEnd(30)} 2.00 KB`,
+      '[?] broken',
+      `[FILE] ${'c.txt'.padEnd(30)} 2.00 KB`,
+      '[DIR] src',
+      '',
+      'Total: 3 files, 1 directories',
+      'Combined size: 4.01 KB',
+    ])
+  })
+
+  it('applies sortBy together with includeSizes', async () => {
+    const lines = await list({ includeSizes: true, sortBy: 'size' })
+    expect(lines.slice(0, 3).map(l => l.split(/\s+/)[1])).toEqual(['b.txt', 'c.txt', 'a.txt'])
+  })
+
+  it('returns an empty listing for an empty directory', async () => {
+    const backend = makeBackend({ readdir: vi.fn().mockResolvedValue([]), stat: vi.fn() })
+    const result = await tool(backend, 'list_directory').handler({ path: '.' }, {})
+    expect(result.content[0].text).toBe('')
+  })
+})
+
+// ─────────────────────────────────────────────────────────────────
 // grep
 // ─────────────────────────────────────────────────────────────────
 
