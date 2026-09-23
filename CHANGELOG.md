@@ -124,6 +124,32 @@ for the updated contract.
   and models routinely filled every field and got an error on a read the tool
   had enough information to serve. Minor-version breaking for callers whose
   prompts explicitly instruct agents to use `head`/`tail`.
+- **`read_text_file`, `read_media_file` and `read_multiple_files` are replaced
+  by a single `read_file`.** It picks its response from the file's type:
+  images and audio come back as media blocks; SVG and other text files are
+  paged exactly as `read_text_file` was; binaries (a NUL byte in the first
+  8 KB, or a video/PDF/archive extension) return file info with `isError`
+  unless `force: true` is passed. `read_multiple_files` returned whole files
+  with none of the paging limits, so one call bypassed them; read several files
+  with parallel `read_file` calls instead. Breaking for callers and prompts that
+  name the old tools.
+- **`list_directory_with_sizes` is folded into `list_directory`** as
+  `includeSizes: true`. `list_directory` also accepts `sortBy`
+  (`"name" | "size"`), and now sorts by name by default instead of returning
+  entries in `readdir` order. With `includeSizes`, entries that can't be read are
+  listed as `[?]` rather than as a 0-byte `[FILE]`. Breaking for callers that
+  name `list_directory_with_sizes`.
+- **`list_allowed_directories` is removed.** The daemon serves one workspace
+  root and every tool takes workspace-relative paths, so the tool could only
+  report the root's absolute host path, which exposed the host layout (including
+  the scope) and steered agents toward absolute paths. Put the root in the
+  system prompt if the agent needs to know it.
+- **The `exec` tool no longer takes `env`**; `command` is its only parameter.
+  Set variables inline instead (`FOO=bar cmd`), which is equivalent: it
+  overrides scope-level `env` the same way, and the parameter's variable
+  filtering was bypassed by inline assignment anyway. The library's
+  `backend.exec(cmd, { env })` option is unchanged. Breaking for callers that
+  pass `env` to the MCP tool.
 - `edit_file` now throws if an edit's `oldText` appears multiple times in the
   current file state and `replaceAll` is not set. Previously, only the first
   occurrence was silently replaced — which could edit the wrong instance. To
