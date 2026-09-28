@@ -7,13 +7,13 @@
   },
   "dependencies": {
     "agent-backend": "workspace:*",
-    "@ai-sdk/mcp": "^2.0.53",
+    "@ai-sdk/mcp": "^2.0.58",
     "@openrouter/ai-sdk-provider": "latest",
     "ai": "latest"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
-    "tsx": "^4.23.13",
+    "tsx": "^4.23.15",
     "typescript": "~6.0.3"
   }
 }
