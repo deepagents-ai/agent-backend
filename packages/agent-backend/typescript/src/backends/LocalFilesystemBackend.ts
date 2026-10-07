@@ -294,7 +294,8 @@ export class LocalFilesystemBackend implements FileBasedBackend {
 
     return new Promise((resolve, reject) => {
       const child = spawn('bwrap', bwrapArgs, {
-        stdio: ['pipe', 'pipe', 'pipe'],
+        // exec takes no input; a stdin pipe left open hangs commands that read it
+        stdio: ['ignore', 'pipe', 'pipe'],
         env,
         // NO cwd here - bwrap handles it with --chdir
       })
@@ -366,7 +367,8 @@ export class LocalFilesystemBackend implements FileBasedBackend {
     return new Promise((resolve, reject) => {
       const child = spawn(shell, ['-c', command], {
         cwd,
-        stdio: ['pipe', 'pipe', 'pipe'],
+        // exec takes no input; a stdin pipe left open hangs commands that read it
+        stdio: ['ignore', 'pipe', 'pipe'],
         env,
       })
 

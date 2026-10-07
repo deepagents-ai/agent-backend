@@ -268,6 +268,7 @@ Execute a shell command within the workspace.
 - MUST run the command in a shell (bash preferred, sh as fallback).
 - MUST set the working directory to the workspace root (or the scope root for scoped backends).
 - MUST set the HOME environment variable to the working directory.
+- MUST give the command an empty standard input that is already at end-of-file. `exec` accepts no input, so a command that reads stdin (e.g. `cat`, or `rg` with no path argument) MUST see end-of-input immediately rather than block waiting for data that never arrives. Local backends MUST NOT leave a pipe to the command's stdin open or let it inherit the caller's stdin; remote backends MUST signal end-of-input on the remote command's stdin.
 - MUST return the command's standard output as text (default) or raw bytes.
 - MUST throw if the command exits with a non-zero exit code. The error SHOULD include stderr (or stdout if stderr is empty).
 - Implementations SHOULD support an encoding option (text vs binary output).

@@ -190,6 +190,20 @@ class TestRemoteBackendFileOps:
         assert cmd.startswith("cd /var/workspace && HOME=/var/workspace ")
         assert "echo hello" in cmd
 
+    async def test_exec_sends_eof_on_stdin(self):
+        import asyncssh
+
+        backend = self._make_backend("/var/workspace")
+        transport, _sftp, _ = self._mock_transport(backend)
+        run_result = MagicMock()
+        run_result.returncode = 0
+        run_result.stdout = ""
+        transport.run.return_value = run_result
+
+        await backend.exec("cat")
+
+        assert transport.run.call_args.kwargs["stdin"] is asyncssh.DEVNULL
+
 
 class TestRemoteBackendAuthRejection:
     """Daemon closing the SSH-WS socket with 4001 surfaces as AUTH_FAILED."""
