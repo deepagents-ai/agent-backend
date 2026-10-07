@@ -442,6 +442,9 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
           return
         }
 
+        // exec takes no input; send EOF so commands that read stdin don't hang
+        stream.end()
+
         const stdoutChunks: Buffer[] = []
         const stderrChunks: Buffer[] = []
 

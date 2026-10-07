@@ -52,7 +52,9 @@ function createMockSSHClient(options: {
     exec: ReturnType<typeof vi.fn>
     sftp: ReturnType<typeof vi.fn>
     end: ReturnType<typeof vi.fn>
+    channels: Array<{ end: () => void }>
   }
+  client.channels = []
 
   client.connect = vi.fn(() => {
     if (options.connectBehavior === 'error') {
@@ -63,8 +65,10 @@ function createMockSSHClient(options: {
   })
 
   client.exec = vi.fn((command: string, callback: Function) => {
-    const channel = new EventEmitter() as EventEmitter & { stderr: EventEmitter }
+    const channel = new EventEmitter() as EventEmitter & { stderr: EventEmitter; end: () => void }
     channel.stderr = new EventEmitter()
+    channel.end = vi.fn()
+    client.channels.push(channel)
     const result = options.execResults ?? { stdout: '', stderr: '', code: 0 }
 
     setTimeout(() => {
@@ -322,6 +326,8 @@ describe('WebSocketSSHTransport', () => {
 
       expect(result.stdout).toBe('hello world\n')
       expect(result.code).toBe(0)
+      // exec takes no input, so the remote command's stdin gets EOF
+      expect(mockSsh.channels[0].end).toHaveBeenCalledTimes(1)
     })
 
     it('should capture stderr and non-zero exit codes', async () => {

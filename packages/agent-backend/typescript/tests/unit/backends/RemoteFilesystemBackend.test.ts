@@ -51,7 +51,9 @@ function createMockSSHClient(options: {
     exec: ReturnType<typeof vi.fn>
     sftp: ReturnType<typeof vi.fn>
     end: ReturnType<typeof vi.fn>
+    streams: Array<{ end: () => void }>
   }
+  mockClient.streams = []
 
   mockClient.connect = vi.fn(() => {
     if (options.connectBehavior === 'error') {
@@ -64,8 +66,10 @@ function createMockSSHClient(options: {
   })
 
   mockClient.exec = vi.fn((command: string, callback: Function) => {
-    const mockStream = new EventEmitter() as EventEmitter & { stderr: EventEmitter }
+    const mockStream = new EventEmitter() as EventEmitter & { stderr: EventEmitter; end: () => void }
     mockStream.stderr = new EventEmitter()
+    mockStream.end = vi.fn()
+    mockClient.streams.push(mockStream)
 
     const result = options.execResults?.get(command) || { stdout: '', stderr: '', exitCode: 0 }
 
@@ -385,6 +389,24 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
 
       const result = await backend.exec('echo hello')
       expect(result).toBe('hello')
+    })
+
+    it('should send EOF on the command stdin so stdin readers do not hang', async () => {
+      const mockClient = createMockSSHClient()
+      vi.mocked(Client).mockImplementation(function () { return mockClient as any })
+
+      const backend = new RemoteFilesystemBackend({
+        ...BASE_SSH_CONFIG,
+        rootDir: TEST_ROOT_DIR,
+        host: 'example.com',
+        sshAuth: {
+          type: 'password',
+          credentials: { username: 'user', password: 'pass' }
+        }
+      })
+
+      await backend.exec('cat')
+      expect(mockClient.streams[0].end).toHaveBeenCalledTimes(1)
     })
 
     it('should reject empty commands', async () => {
@@ -990,8 +1012,9 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       const mockClient = createMockSSHClient()
       mockClient.exec = vi.fn((command: string, callback: Function) => {
         executedCommand = command
-        const mockStream = new EventEmitter() as EventEmitter & { stderr: EventEmitter }
+        const mockStream = new EventEmitter() as EventEmitter & { stderr: EventEmitter; end: () => void }
         mockStream.stderr = new EventEmitter()
+        mockStream.end = vi.fn()
         setTimeout(() => {
           mockStream.emit('data', Buffer.from(''))
           mockStream.emit('close', 0)

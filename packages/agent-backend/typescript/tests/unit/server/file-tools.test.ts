@@ -417,9 +417,20 @@ describe('grep — ripgrep shell-out', () => {
     const cmd = exec.mock.calls[0][0] as string
     expect(cmd).toMatch(/^rg /)
     expect(cmd).toContain("'-l'")
-    expect(cmd).toContain("'--' 'foo'")
+    expect(cmd).toContain("'--' 'foo' '.'")
     expect(cmd).toContain('|| [ $? -eq 1 ]')
     expect(result.content[0].text).toBe('src/a.ts\nsrc/b.ts')
+  })
+
+  it('searches an explicit path instead of the workspace root when given', async () => {
+    const exec = vi.fn().mockResolvedValue('')
+    const backend = makeBackend({ exec })
+    const t = tool(backend, 'grep')
+    await t.handler({ pattern: 'foo', path: 'src' }, {})
+
+    const cmd = exec.mock.calls[0][0] as string
+    expect(cmd).toContain("'--' 'foo' 'src'")
+    expect(cmd).not.toContain("'.'")
   })
 
   it('passes case-insensitive, multiline, context, and glob flags', async () => {

@@ -212,6 +212,8 @@ class LocalFilesystemBackend:
     ) -> str | bytes:
         proc = await asyncio.create_subprocess_exec(
             *args,
+            # exec takes no input; an inherited stdin can hang commands that read it
+            stdin=asyncio.subprocess.DEVNULL,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             env=env,

@@ -283,7 +283,7 @@ describe('LocalFilesystemBackend (Unit Tests)', () => {
         ['-c', 'echo hello'],
         expect.objectContaining({
           cwd: '/test/workspace',
-          stdio: ['pipe', 'pipe', 'pipe']
+          stdio: ['ignore', 'pipe', 'pipe']
         })
       )
     })

@@ -284,6 +284,9 @@ export class WebSocketSSHTransport extends EventEmitter {
           return
         }
 
+        // exec takes no input; send EOF so commands that read stdin don't hang
+        channel.end()
+
         let stdout = ''
         let stderr = ''
 

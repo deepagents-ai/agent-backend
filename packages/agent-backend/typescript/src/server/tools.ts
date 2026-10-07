@@ -849,8 +849,8 @@ export function registerGrepTool(server: McpServer, getBackend: BackendGetter): 
       if (glob) rgArgs.push('--glob', glob)
       if (type) rgArgs.push('--type', type)
 
-      rgArgs.push('--', pattern)
-      if (searchPath) rgArgs.push(searchPath)
+      // Always pass a path: with none, rg searches stdin instead of the cwd.
+      rgArgs.push('--', pattern, searchPath || '.')
 
       // `rg` exits 1 when it finds no matches; wrap so that only exit 0 means
       // "found results" and exit 1 means "real rg error". Exit 2 from rg gets

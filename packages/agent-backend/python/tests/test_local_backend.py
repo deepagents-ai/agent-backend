@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
 
 import pytest
@@ -168,6 +169,11 @@ class TestLocalBackendExec:
     async def test_exec_simple(self, local_backend):
         result = await local_backend.exec("echo hello")
         assert result == "hello"
+
+    async def test_exec_stdin_is_at_eof(self, local_backend):
+        # exec takes no input: a command that reads stdin must see EOF, not hang.
+        result = await asyncio.wait_for(local_backend.exec("cat"), timeout=5)
+        assert result == ""
 
     async def test_exec_empty_command(self, local_backend):
         with pytest.raises(BackendError) as exc_info:

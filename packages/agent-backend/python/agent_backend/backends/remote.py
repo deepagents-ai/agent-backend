@@ -11,6 +11,8 @@ import logging
 import posixpath
 from typing import TYPE_CHECKING, Any
 
+import asyncssh
+
 from agent_backend.backends.path_validation import (
     validate_within_boundary,
 )
@@ -188,7 +190,8 @@ class RemoteFilesystemBackend:
             env_str = " ".join(f"{k}={v}" for k, v in options.env.items()) + " "
         full_command = f"cd {cwd} && HOME={cwd} {env_str}{command}"
 
-        result = await self._transport.run(full_command, check=False)
+        # exec takes no input; DEVNULL sends EOF so commands that read stdin don't hang
+        result = await self._transport.run(full_command, check=False, stdin=asyncssh.DEVNULL)
 
         if result.returncode == 0:
             output = (result.stdout or "").strip()
