@@ -1038,4 +1038,43 @@ describe('RemoteFilesystemBackend (Unit Tests)', () => {
       expect(executedCommand).toContain("MY_VAR='hello'")
     })
   })
+
+  describe('Channel Limiting', () => {
+    it('should complete all operations when more are queued than the channel limit allows', async () => {
+      let inFlight = 0
+      let maxInFlight = 0
+      const mockClient = createMockSSHClient({
+        sftpMethods: {
+          readFile: (_path, _encoding, callback) => {
+            inFlight++
+            maxInFlight = Math.max(maxInFlight, inFlight)
+            setTimeout(() => {
+              inFlight--
+              callback(null, 'file content')
+            }, 20)
+          }
+        }
+      })
+      vi.mocked(Client).mockImplementation(function () { return mockClient as any })
+
+      const backend = new RemoteFilesystemBackend({
+        ...BASE_SSH_CONFIG,
+        rootDir: TEST_ROOT_DIR,
+        host: 'example.com',
+        sshAuth: {
+          type: 'password',
+          credentials: { username: 'user', password: 'pass' }
+        }
+      })
+
+      // 60 > MAX_CONCURRENT_CHANNELS (50): at least two waiters queue up
+      const results = await Promise.all(
+        Array.from({ length: 60 }, (_, i) => backend.read(`file${i}.txt`))
+      )
+
+      expect(results).toHaveLength(60)
+      expect(results.every((r) => r === 'file content')).toBe(true)
+      expect(maxInFlight).toBe(50)
+    })
+  })
 })
