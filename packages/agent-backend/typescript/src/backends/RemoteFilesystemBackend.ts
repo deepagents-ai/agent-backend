@@ -43,13 +43,6 @@ interface PendingOperation {
   description: string
 }
 
-/** Queued operation waiting for a channel slot */
-interface QueuedOperation<T> {
-  execute: () => Promise<T>
-  resolve: (value: T) => void
-  reject: (error: Error) => void
-}
-
 /**
  * Remote filesystem backend implementation using SSH + HTTP MCP
  *
@@ -91,9 +84,8 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
   /** Current number of active SSH channels */
   private activeChannels = 0
 
-  /** Queue of operations waiting for a channel slot */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private operationQueue: QueuedOperation<any>[] = []
+  /** Operations waiting for a channel slot, woken in FIFO order */
+  private channelWaiters: Array<() => void> = []
 
   /** Cached SFTP session - reused for all SFTP operations to avoid channel exhaustion */
   private sftpSession: SFTPWrapper | null = null
@@ -1283,49 +1275,29 @@ export class RemoteFilesystemBackend implements FileBasedBackend {
   }
 
   /**
-   * Execute operation with channel limiting
+   * Execute operation with channel limiting.
+   *
+   * A finishing operation hands its slot directly to the next waiter rather
+   * than releasing it, so a woken waiter never has to re-check the count.
+   * Re-checking would let the slot be taken back before the waiter resumes,
+   * re-queueing it indefinitely (a microtask livelock).
    */
   private async withChannelLimit<T>(operation: () => Promise<T>): Promise<T> {
-    // Wait for available channel slot
-    while (this.activeChannels >= MAX_CONCURRENT_CHANNELS) {
-      await new Promise<void>((resolve) => {
-        this.operationQueue.push({
-          execute: async () => undefined,
-          resolve,
-          reject: () => {},
-        })
-      })
+    if (this.activeChannels >= MAX_CONCURRENT_CHANNELS) {
+      // Slot is handed over by the finishing operation; count is unchanged
+      await new Promise<void>((resolve) => this.channelWaiters.push(resolve))
+    } else {
+      this.activeChannels++
     }
-
-    this.activeChannels++
 
     try {
       return await operation()
     } finally {
-      this.activeChannels--
-      this.processQueue()
-    }
-  }
-
-  /**
-   * Process queued operations
-   */
-  private processQueue(): void {
-    while (this.operationQueue.length > 0 && this.activeChannels < MAX_CONCURRENT_CHANNELS) {
-      const next = this.operationQueue.shift()
+      const next = this.channelWaiters.shift()
       if (next) {
-        this.activeChannels++
-        next.execute()
-          .then((result) => {
-            this.activeChannels--
-            next.resolve(result)
-            this.processQueue()
-          })
-          .catch((error) => {
-            this.activeChannels--
-            next.reject(error)
-            this.processQueue()
-          })
+        next()
+      } else {
+        this.activeChannels--
       }
     }
   }
