@@ -32,11 +32,11 @@
     "@agentbe/ingestion": "workspace:*",
     "@agentbe/vector-pg": "workspace:*",
     "agent-backend": "workspace:*",
-    "@modelcontextprotocol/sdk": "^1.31.0",
-    "@huggingface/transformers": "^4.3.0",
+    "@modelcontextprotocol/sdk": "^1.32.1",
+    "@huggingface/transformers": "^4.3.1",
     "pg": "^8.23.1",
     "zod": "^4.6.5",
-    "@aws-sdk/client-s3": "^3.1145.0"
+    "@aws-sdk/client-s3": "^3.1149.0"
   },
   "devDependencies": {
     "@types/node": "^20.17.10",
