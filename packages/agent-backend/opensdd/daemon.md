@@ -489,7 +489,8 @@ The Docker image MUST use `ubuntu:26.04` as the base image.
 The image MUST include:
 - `sudo`, `curl`, `wget`, `tree`, `ripgrep`, `git`
 - `python3`, `python3-pip`
-- Node.js 20 (via nodesource)
+- Node.js 24 LTS (via nodesource), version 24.15.0 or later, on `PATH` as `node` — `require('zlib').createZstdDecompress` MUST be defined. The image build MUST fail if the installed Node does not satisfy this.
+- `npm`, installed under that same Node; all global npm packages below MUST be installed with it
 - `pnpm`, `tsx` (global npm packages)
 - `agent-backend` (from npm or local build)
 - `openssh-server` (when `INCLUDE_SSHD=true`)

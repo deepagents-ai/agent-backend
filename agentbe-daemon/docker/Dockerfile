@@ -35,10 +35,14 @@ RUN if [ "$INCLUDE_SSHD" = "true" ]; then \
       apt-get update && apt-get install -y openssh-server && rm -rf /var/lib/apt/lists/*; \
     fi
 
-# Install Node.js 20
-RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+# Install Node.js 24 LTS. Sandbox tooling (e.g. undici 8, jsdom 30) needs
+# >=24.15.0 and zlib's zstd APIs, so fail the build if the install falls short.
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - && \
     apt-get install -y nodejs && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* && \
+    node -e "const [maj, min] = process.versions.node.split('.').map(Number); \
+      if (maj !== 24 || min < 15) throw new Error('need Node >=24.15.0 <25, got ' + process.version); \
+      if (typeof require('zlib').createZstdDecompress !== 'function') throw new Error('zlib.createZstdDecompress missing');"
 
 # Install global npm packages
 RUN npm i -g pnpm && \
